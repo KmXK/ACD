@@ -4,6 +4,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ACD.Parser", "ACD.Parser\AC
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ACD.Logic", "ACD.Logic\ACD.Logic.csproj", "{D133EF37-1CF8-4665-BEEB-E1F49FE02CCE}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ACD.Infrastructure", "ACD.Infrastructure\ACD.Infrastructure.csproj", "{9C309FFB-3172-4E22-BE70-37CD412500CA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ACD.WPF", "ACD.WPF\ACD.WPF.csproj", "{318703F6-A4C2-40A2-8002-A7D2ACD3723A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -18,5 +22,13 @@ Global
 		{D133EF37-1CF8-4665-BEEB-E1F49FE02CCE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D133EF37-1CF8-4665-BEEB-E1F49FE02CCE}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D133EF37-1CF8-4665-BEEB-E1F49FE02CCE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9C309FFB-3172-4E22-BE70-37CD412500CA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9C309FFB-3172-4E22-BE70-37CD412500CA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9C309FFB-3172-4E22-BE70-37CD412500CA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9C309FFB-3172-4E22-BE70-37CD412500CA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{318703F6-A4C2-40A2-8002-A7D2ACD3723A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{318703F6-A4C2-40A2-8002-A7D2ACD3723A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{318703F6-A4C2-40A2-8002-A7D2ACD3723A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{318703F6-A4C2-40A2-8002-A7D2ACD3723A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

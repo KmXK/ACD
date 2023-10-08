@@ -1,11 +1,14 @@
-﻿using System.Globalization;
+﻿using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Numerics;
+using ACD.Infrastructure;
+using Microsoft.VisualBasic;
 
 namespace ACD.Parser;
 
 public class ObjParser : IParser
 {
-    public ParseResult Parse(IEnumerable<string> parseData)
+    public Model? Parse(IEnumerable<string> parseData)
     {
         var vertices = new List<Vector4>();
         var vertexTextures = new List<Vector3>();
@@ -35,7 +38,7 @@ public class ObjParser : IParser
             }
         }
         
-        return new ParseResult(polygons);
+        return new Model(polygons);
     }
 
     private static Vector4 ParseVertex(IReadOnlyList<string> tokens)
@@ -84,18 +87,34 @@ public class ObjParser : IParser
         for (var i = 1; i < tokens.Count; i++)
         {
             var units = tokens[i].Split('/');
-            
-            if (int.TryParse(units[0], out var vertexIndex))
+
+            var vertex = Get(0, readVertices);
+            var texture = Get(1, readVertexTextures);
+            var normal = Get(2, readVertexNormals);
+
+            if (vertex.HasValue)
             {
-                if (vertexIndex >= 0)
+                vertices.Add(new PolygonVertex(vertex.Value, texture, normal));
+            }
+
+            T? Get<T>(int unitIndex, IReadOnlyList<T> collection) where T : struct
+            {
+                if (units!.Length < unitIndex + 1)
                 {
-                    vertexIndex--;
+                    return null;
+                }
+                
+                if (int.TryParse(units[unitIndex], out var index))
+                {
+                    if (index >= 0)
+                    {
+                        index--;
+                    }
+                
+                    return collection[index];
                 }
 
-                vertices.Add(new PolygonVertex(
-                    readVertices[vertexIndex],
-                    readVertexTextures[vertexIndex],
-                    readVertexNormals[vertexIndex]));
+                return null;
             }
         }
         

@@ -1,0 +1,17 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>WinExe</OutputType>
+        <TargetFramework>net7.0-windows</TargetFramework>
+        <Nullable>enable</Nullable>
+        <UseWPF>true</UseWPF>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\ACD.Infrastructure\ACD.Infrastructure.csproj" />
+      <ProjectReference Include="..\ACD.Logic\ACD.Logic.csproj" />
+      <ProjectReference Include="..\ACD.Parser\ACD.Parser.csproj" />
+    </ItemGroup>
+
+</Project>

@@ -4,7 +4,7 @@ namespace ACD.Logic;
 
 public class Camera
 {
-    public VectorSpherical SphericalPosition { get; private set; } = new(1, 0, MathF.PI / 2);
+    public VectorSpherical SphericalPosition { get; private set; } = new(10, 0, MathF.PI / 2);
     public Vector3 Target { get; private set; } = new(0, 0, 0);
     public Vector3 Up { get; private set; } = new(0, 1, 0);
 
@@ -17,6 +17,13 @@ public class Camera
     private float _fov = MathF.PI / 2;
     private float _zNear = 0.1f;
     private float _zFar = 1000;
+
+    public Camera()
+    {
+        UpdateViewMatrix();
+        UpdateProjectionMatrix();
+        UpdateViewPortMatrix();
+    }
 
     public float ScreenWidth
     {
@@ -74,11 +81,21 @@ public class Camera
         }
     }
 
-    public Camera()
+    public void TranslateProjection(Vector2 vector)
     {
+        SphericalPosition = new VectorSpherical(
+            SphericalPosition.R,
+            SphericalPosition.AzimuthAngle + vector.X,
+            SphericalPosition.ElevationAngle + vector.Y);
+        
+        // var position = SphericalPosition.ToCartesian();
+        //
+        // var forward = Vector3.Normalize(Target - position);
+        // var right = Vector3.Normalize(Vector3.Cross(forward, Up));
+        //
+        // Target += Up * vector.Y + right * vector.X;
+        
         UpdateViewMatrix();
-        UpdateProjectionMatrix();
-        UpdateViewPortMatrix();
     }
 
     public void ResetPosition()

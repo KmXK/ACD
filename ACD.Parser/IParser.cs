@@ -1,6 +1,8 @@
-﻿namespace ACD.Parser;
+﻿using ACD.Infrastructure;
+
+namespace ACD.Parser;
 
 public interface IParser
 {
-    public ParseResult Parse(IEnumerable<string> parseData);
+    public Model? Parse(IEnumerable<string> parseData);
 }

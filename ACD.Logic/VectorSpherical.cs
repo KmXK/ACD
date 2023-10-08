@@ -2,11 +2,11 @@
 
 namespace ACD.Logic;
 
-public struct VectorSpherical
+public readonly struct VectorSpherical
 {
-    public float R;
-    public float AzimuthAngle;
-    public float ElevationAngle;
+    public readonly float R;
+    public readonly float AzimuthAngle;
+    public readonly float ElevationAngle;
 
     public VectorSpherical(float r, float azimuthAngle, float elevationAngle)
     {
@@ -19,6 +19,10 @@ public struct VectorSpherical
     {
         var (sinAzimuth, cosAzimuth) = MathF.SinCos(AzimuthAngle);
         var (sinElevation, cosElevation) = MathF.SinCos(ElevationAngle);
+        // return new Vector3(
+        //     R * sinElevation * cosAzimuth,
+        //     R * cosElevation,
+        //     R * sinElevation * sinAzimuth);
         return new Vector3(R * sinElevation * sinAzimuth, R * cosElevation, R * sinElevation * cosAzimuth);
     }
 }
