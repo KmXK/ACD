@@ -17,24 +17,31 @@ public class ObjParser : IParser
         
         foreach (var tokens in parseData.Select(x => x.Trim().Split(' ')))
         {
-            switch (tokens[0])
+            try
             {
-                case "v":
-                    vertices.Add(ParseVertex(tokens));
-                    break;
-                case "vt":
-                    vertexTextures.Add(ParseVertexTexture(tokens));
-                    break;
-                case "vn":
-                    vertexNormals.Add(ParseVertexNormal(tokens));
-                    break;
-                case "f":
-                    polygons.Add(ParsePolygon(
-                        tokens,
-                        vertices,
-                        vertexTextures,
-                        vertexNormals));
-                    break;
+                switch (tokens[0])
+                {
+                    case "v":
+                        vertices.Add(ParseVertex(tokens));
+                        break;
+                    case "vt":
+                        vertexTextures.Add(ParseVertexTexture(tokens));
+                        break;
+                    case "vn":
+                        vertexNormals.Add(ParseVertexNormal(tokens));
+                        break;
+                    case "f":
+                        polygons.Add(ParsePolygon(
+                            tokens,
+                            vertices,
+                            vertexTextures,
+                            vertexNormals));
+                        break;
+                }
+            }
+            catch
+            {
+                // ignored
             }
         }
         

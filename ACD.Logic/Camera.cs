@@ -81,19 +81,25 @@ public class Camera
         }
     }
 
-    public void TranslateProjection(Vector2 vector)
+    public void MoveOnSphere(Vector2 vector)
     {
+        var azimuth = SphericalPosition.AzimuthAngle + vector.X;
+        var elevation = Math.Clamp(SphericalPosition.ElevationAngle + vector.Y, 0.001f, MathF.PI - 0.001f);
+        
         SphericalPosition = new VectorSpherical(
             SphericalPosition.R,
-            SphericalPosition.AzimuthAngle + vector.X,
-            SphericalPosition.ElevationAngle + vector.Y);
+            azimuth,
+            elevation);
         
-        // var position = SphericalPosition.ToCartesian();
-        //
-        // var forward = Vector3.Normalize(Target - position);
-        // var right = Vector3.Normalize(Vector3.Cross(forward, Up));
-        //
-        // Target += Up * vector.Y + right * vector.X;
+        UpdateViewMatrix();
+    }
+
+    public void Zoom(float delta)
+    {
+        SphericalPosition = new VectorSpherical(
+            SphericalPosition.R + delta,
+            SphericalPosition.AzimuthAngle,
+            SphericalPosition.ElevationAngle);
         
         UpdateViewMatrix();
     }

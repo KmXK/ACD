@@ -7,7 +7,9 @@
         FontSize="16"
         Title="MainWindow" Height="450" Width="800"
         SizeChanged="MainWindow_OnSizeChanged"
-        MouseMove="MainWindow_OnMouseMove">
+        MouseWheel="MainWindow_OnMouseWheel"
+        MouseMove="MainWindow_OnMouseMove"
+        KeyDown="MainWindow_OnKeyDown">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>

@@ -1,6 +1,5 @@
 ﻿using System;
 using System.IO;
-using System.Linq;
 using System.Numerics;
 using System.Windows;
 using System.Windows.Input;
@@ -9,7 +8,7 @@ using System.Windows.Media.Imaging;
 using ACD.Infrastructure;
 using ACD.Logic;
 using ACD.Parser;
-using ACD.WPF.Rasterization;
+using ACD.WPF.Drawers;
 using Microsoft.Win32;
 
 namespace ACD.WPF;
@@ -24,6 +23,14 @@ public partial class MainWindow
     private readonly Camera _camera = new();
 
     private Point? _clickPosition = null;
+
+    private Func<WriteableBitmap, DrawerBase>[] _drawerFactories =
+    {
+        bitmap => new DdaLineDrawer(bitmap),
+        bitmap => new BresenhamDrawer(bitmap)
+    };
+
+    private int _selectedDrawer = 0;
     
     public MainWindow()
     {
@@ -74,7 +81,7 @@ public partial class MainWindow
             {
                 var delta = _clickPosition.Value - position;
 
-                _camera.TranslateProjection(new Vector2((float)delta.X / 100, (float)delta.Y / 100));
+                _camera.MoveOnSphere(new Vector2((float)delta.X / 100, (float)delta.Y / 100));
 
                 DrawModel();
             }
@@ -122,39 +129,65 @@ public partial class MainWindow
         }
         
         FillBitmap(Colors.Black);
-        var drawer = new DDALineDrawer(_bitmap);
+        
+        var drawer = _drawerFactories[_selectedDrawer].Invoke(_bitmap);
 
-        var p_i = 0;
+        _bitmap.Lock();
         
         foreach (var polygon in _model.Polygons)
         {
-            p_i++;
-
-            if (p_i % 100 == 0)
-            {
-                Console.WriteLine($"Polygon number {p_i}");
-            }
-            var prevV = null as Vector4?;
+            Vector4? prevV = null;
+            Vector4? firstV = null;
             
-            foreach (var (vertex, _, _) in polygon.Vertices.Append(polygon.Vertices.First()))
+            foreach (var (vertex, _, _) in polygon.Vertices)
             {
                 var v = Vector4.Transform(vertex, _transform.Transformation);
                 v = Vector4.Transform(v, _camera.View);
                 v = Vector4.Transform(v, _camera.Projection);
-
-                v /= v.W;
                 
                 v = Vector4.Transform(v, _camera.ViewPort);
                 
-                if (prevV == null)
+                v /= v.W;
+
+                firstV ??= v;
+
+                if (prevV.HasValue)
                 {
-                    prevV = v;
-                    continue;
+                    drawer.DrawLine(v.X, v.Y, prevV.Value.X, prevV.Value.Y);
                 }
-                
-                drawer.DrawLine(v.X, v.Y, prevV.Value.X, prevV.Value.Y);
+
                 prevV = v;
             }
+            
+            drawer.DrawLine(firstV!.Value.X, firstV.Value.Y, prevV!.Value.X, prevV.Value.Y);
+        }
+        
+        _bitmap.Unlock();
+    }
+
+    private void MainWindow_OnMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        var delta = -e.Delta * 1f;
+
+        if (Keyboard.Modifiers.HasFlag(ModifierKeys.Shift))
+        {
+            delta /= 30f;
+        }
+        else
+        {
+            delta /= 300f;
+        }
+        
+        _camera.Zoom(delta);
+        DrawModel();
+    }
+
+    private void MainWindow_OnKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.D)
+        {
+            _selectedDrawer = (_selectedDrawer + 1) % _drawerFactories.Length;
+            DrawModel();
         }
     }
 }
