@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Net.WebSockets;
 using System.Numerics;
 using System.Windows;
 using System.Windows.Input;
@@ -7,6 +9,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using ACD.Infrastructure;
 using ACD.Logic;
+using ACD.Logic.Bitmap;
 using ACD.Logic.LineDrawers;
 using ACD.Logic.ModelDrawer;
 using ACD.Logic.VertexTransformer;
@@ -25,7 +28,7 @@ public partial class MainWindow
 
     private Point? _clickPosition = null;
 
-    private IModelDrawer? _modelDrawer;
+    private IRenderer? _modelDrawer;
 
     private int _selectedDrawer = 0;
     
@@ -50,7 +53,7 @@ public partial class MainWindow
 
             if (model is not null)
             {
-                _modelDrawer = new ModelDrawer(model);
+                _modelDrawer = new Renderer(model);
                 DrawModel();
             }
         }
@@ -103,23 +106,42 @@ public partial class MainWindow
             return;
         }
         
-        FillBitmap(Colors.Black);
+        FillBitmap(Color.FromArgb(0, 0, 0, 0));
 
         var vertexTransformer = new VertexScreenTransformer(_camera, _transform);
         var bitmapAdapter = new WritableBitmapAdapter(_bitmap);
 
-        LineDrawerBase lineDrawer = _selectedDrawer switch
-        {
-            0 => new DdaLineLineDrawer(bitmapAdapter),
-            1 => new BresenhamLineDrawer(bitmapAdapter),
-            _ => throw new ArgumentOutOfRangeException()
-        };
-
         _bitmap.Lock();
-        _modelDrawer.DrawModel(lineDrawer, vertexTransformer);
+        _modelDrawer.DrawModel(bitmapAdapter, vertexTransformer, _camera.SphericalPosition.ToCartesian());
+
+        // DrawAxes(vertexTransformer, bitmapAdapter);
+        
         _bitmap.Unlock();
     }
-    
+
+    private void DrawAxes(
+        IVertexTransformer vertexTransformer, 
+        IBitmap bitmap)
+    {
+        var axes = new[] { Vector4.UnitX, Vector4.UnitY, Vector4.UnitZ };
+        var lineDrawer = new DdaLineLineDrawer(bitmap);
+        
+        foreach (var axis in axes)
+        {
+            var v1 = vertexTransformer.Transform(axis * 1 + Vector4.UnitW);
+            var v2 = vertexTransformer.Transform(-axis * 1 + Vector4.UnitW);
+
+            var color = System.Drawing.Color.FromArgb(
+                255, 
+                (byte)(axis.X * 255),
+                (byte)(axis.Y * 255),
+                (byte)(axis.Z * 255));
+            
+            lineDrawer.DrawLine(v1.X, v1.Y, v2.X, v2.Y, color);
+        }
+        
+    }
+
     private void FillBitmap(Color fillColor)
     {
         if (_bitmap == null)
@@ -137,7 +159,7 @@ public partial class MainWindow
             _pixelData[i + 2] = fillColor.R;
             _pixelData[i + 1] = fillColor.G;
             _pixelData[i + 0] = fillColor.B;
-            _pixelData[i + 3] = 255;
+            _pixelData[i + 3] = fillColor.A;
         }
         
         _bitmap.WritePixels(
@@ -166,9 +188,23 @@ public partial class MainWindow
 
     private void MainWindow_OnKeyDown(object sender, KeyEventArgs e)
     {
+        var dict = new Dictionary<Key, Action>
+        {
+            [Key.Left] = () => _camera.MoveTarget(Vector3.UnitX * -1),
+            [Key.Right] = () => _camera.MoveTarget(Vector3.UnitX * 1),
+            [Key.Up] = () => _camera.MoveTarget(Vector3.UnitY * -1),
+            [Key.Down] = () => _camera.MoveTarget(Vector3.UnitY * 1)
+        };
+        
         if (e.Key == Key.D)
         {
             _selectedDrawer = (_selectedDrawer + 1) % 2;
+            DrawModel();
+        }
+        else
+        {
+            dict.TryGetValue(e.Key, out var action);
+            action?.Invoke();
             DrawModel();
         }
     }

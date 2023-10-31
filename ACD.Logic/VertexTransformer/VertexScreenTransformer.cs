@@ -22,9 +22,11 @@ public class VertexScreenTransformer : IVertexTransformer
         
         v = Vector4.Transform(v, _camera.View);
         v = Vector4.Transform(v, _camera.Projection);
-        v = Vector4.Transform(v, _camera.ViewPort);
         
         v /= v.W;
+        
+        v = Vector4.Transform(v, _camera.ViewPort);
+        
 
         return v;
     }

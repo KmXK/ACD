@@ -6,6 +6,7 @@
         mc:Ignorable="d"
         FontSize="16"
         Title="MainWindow" Height="450" Width="800"
+        Background="Aquamarine"
         SizeChanged="MainWindow_OnSizeChanged"
         MouseWheel="MainWindow_OnMouseWheel"
         MouseMove="MainWindow_OnMouseMove"
@@ -26,7 +27,7 @@
                 <MenuItem Header="Exit" Click="MenuItem_Exit_OnClicked"/>
             </MenuItem>
         </Menu>
-        <DockPanel Grid.Row="1" Background="White" x:Name="ImageContainer">
+        <DockPanel Grid.Row="1" x:Name="ImageContainer">
             <Image x:Name="Image"></Image>
         </DockPanel>
     </Grid>

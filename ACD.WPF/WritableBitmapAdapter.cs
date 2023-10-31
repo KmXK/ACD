@@ -31,13 +31,14 @@ public class WritableBitmapAdapter : IBitmap
         
             pBackBuffer += y * _bitmap.BackBufferStride;
             pBackBuffer += x * 4;
-        
-            var colorData = color.B << 8;
-            colorData |= color.G << 16;
-            colorData |= color.R << 24;
-            colorData |= 255;
             
-            *(int*)pBackBuffer = colorData;
+            var colorData = 0xFF000000;
+            colorData |= color.B;
+            colorData |= (uint)(color.G << 8);
+            colorData |= (uint)(color.R << 16);
+            colorData |= (uint)(color.A << 24);
+            
+            *(uint*)pBackBuffer = colorData;
         }
         
         _bitmap.AddDirtyRect(new Int32Rect(x, y, 1, 1));

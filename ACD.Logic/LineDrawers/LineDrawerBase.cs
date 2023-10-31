@@ -1,4 +1,5 @@
-﻿using ACD.Logic.Bitmap;
+﻿using System.Drawing;
+using ACD.Logic.Bitmap;
 
 namespace ACD.Logic.LineDrawers;
 
@@ -11,9 +12,9 @@ public abstract class LineDrawerBase : ILineDrawer
         Bitmap = bitmap;
     }
 
-    protected abstract void DrawLineImpl(float x1, float y1, float x2, float y2);
+    protected abstract void DrawLineImpl(float x1, float y1, float x2, float y2, Color color);
     
-    public void DrawLine(float x1, float y1, float x2, float y2)
+    public void DrawLine(float x1, float y1, float x2, float y2, Color color)
     {
         if (x1 < 0 || x2 < 0 || x1 > Bitmap.Width || x2 > Bitmap.Width ||
             y1 < 0 || y2 < 0 || y1 > Bitmap.Height || y2 > Bitmap.Height)
@@ -37,7 +38,7 @@ public abstract class LineDrawerBase : ILineDrawer
             return;
         }
         
-        DrawLineImpl(x1, y1, x2, y2);
+        DrawLineImpl(x1, y1, x2, y2, color);
     }
     
     private (float X, float Y) ClampStartPoint(float x, float y, float dx, float dy)

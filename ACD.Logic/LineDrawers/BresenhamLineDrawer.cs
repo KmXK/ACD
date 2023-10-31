@@ -9,7 +9,7 @@ namespace ACD.Logic.LineDrawers
         {
         }
         
-        protected override void DrawLineImpl(float x1, float y1, float x2, float y2)
+        protected override void DrawLineImpl(float x1, float y1, float x2, float y2, Color color)
         {
             var reverse = false;
             if (Math.Abs(x2 - x1) < Math.Abs(y2 - y1))
@@ -36,11 +36,11 @@ namespace ACD.Logic.LineDrawers
             {
                 if (reverse)
                 {
-                    Bitmap.DrawPixel(y, x, Color.White);
+                    Bitmap.DrawPixel(y, x, color);
                 }
                 else
                 {
-                    Bitmap.DrawPixel(x, y, Color.White);
+                    Bitmap.DrawPixel(x, y, color);
                 }
 
                 x += xChange;

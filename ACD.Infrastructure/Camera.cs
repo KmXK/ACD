@@ -94,6 +94,13 @@ public class Camera
         UpdateViewMatrix();
     }
 
+    public void MoveTarget(Vector3 vector)
+    {
+        Target = Vector3.Add(Target, vector);
+        
+        UpdateViewMatrix();
+    }
+
     public void Zoom(float delta)
     {
         SphericalPosition = new VectorSpherical(
