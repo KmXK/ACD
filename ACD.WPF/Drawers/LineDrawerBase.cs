@@ -5,13 +5,13 @@ using System.Windows.Media.Imaging;
 
 namespace ACD.WPF.Drawers;
 
-public abstract class DrawerBase
+public abstract class LineDrawerBase
 {
     private readonly int _width;
     private readonly int _height;
     protected WriteableBitmap Bitmap { get; }
 
-    protected DrawerBase(WriteableBitmap bitmap)
+    protected LineDrawerBase(WriteableBitmap bitmap)
     {
         Bitmap = bitmap;
         _width = bitmap.PixelWidth;

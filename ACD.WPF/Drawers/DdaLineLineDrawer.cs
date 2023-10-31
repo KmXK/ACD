@@ -4,12 +4,12 @@ using System.Windows.Media.Imaging;
 
 namespace ACD.WPF.Drawers;
 
-public class DdaLineDrawer : DrawerBase
+public class DdaLineLineDrawer : LineDrawerBase
 {
     private readonly float _width;
     private readonly float _height;
 
-    public DdaLineDrawer(WriteableBitmap bitmap) : base(bitmap)
+    public DdaLineLineDrawer(WriteableBitmap bitmap) : base(bitmap)
     {
         _width = Bitmap.PixelWidth;
         _height = Bitmap.PixelHeight;

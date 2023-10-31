@@ -24,11 +24,7 @@ public partial class MainWindow
 
     private Point? _clickPosition = null;
 
-    private Func<WriteableBitmap, DrawerBase>[] _drawerFactories =
-    {
-        bitmap => new DdaLineDrawer(bitmap),
-        bitmap => new BresenhamDrawer(bitmap)
-    };
+    private ModelDrawer? _modelDrawer;
 
     private int _selectedDrawer = 0;
     
@@ -93,6 +89,22 @@ public partial class MainWindow
             _clickPosition = null;
         }
     }
+
+    private void DrawModel()
+    {
+        FillBitmap(Colors.Black);
+
+        LineDrawerBase drawer = _selectedDrawer switch
+        {
+            0 => new DdaLineLineDrawer(_bitmap),
+            1 => new BresenhamLineDrawer(_bitmap),
+            _ => throw new ArgumentOutOfRangeException()
+        };
+
+        _bitmap.Lock();
+        _modelDrawer?.DrawModel(drawer);
+        _bitmap.Unlock();
+    }
     
     private void FillBitmap(Color fillColor)
     {
@@ -121,49 +133,7 @@ public partial class MainWindow
             0);
     }
 
-    private void DrawModel()
-    {
-        if (_model is null)
-        {
-            return;
-        }
-        
-        FillBitmap(Colors.Black);
-        
-        var drawer = _drawerFactories[_selectedDrawer].Invoke(_bitmap);
-
-        _bitmap.Lock();
-        
-        foreach (var polygon in _model.Polygons)
-        {
-            Vector4? prevV = null;
-            Vector4? firstV = null;
-            
-            foreach (var (vertex, _, _) in polygon.Vertices)
-            {
-                var v = Vector4.Transform(vertex, _transform.Transformation);
-                v = Vector4.Transform(v, _camera.View);
-                v = Vector4.Transform(v, _camera.Projection);
-                
-                v = Vector4.Transform(v, _camera.ViewPort);
-                
-                v /= v.W;
-
-                firstV ??= v;
-
-                if (prevV.HasValue)
-                {
-                    drawer.DrawLine(v.X, v.Y, prevV.Value.X, prevV.Value.Y);
-                }
-
-                prevV = v;
-            }
-            
-            drawer.DrawLine(firstV!.Value.X, firstV.Value.Y, prevV!.Value.X, prevV.Value.Y);
-        }
-        
-        _bitmap.Unlock();
-    }
+    
 
     private void MainWindow_OnMouseWheel(object sender, MouseWheelEventArgs e)
     {

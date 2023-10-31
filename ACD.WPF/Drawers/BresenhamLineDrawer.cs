@@ -5,9 +5,9 @@ using System.Windows.Media.Imaging;
 
 namespace ACD.WPF.Drawers
 {
-    public class BresenhamDrawer : DrawerBase
+    public class BresenhamLineDrawer : LineDrawerBase
     {
-        public BresenhamDrawer(WriteableBitmap bitmap) : base(bitmap)
+        public BresenhamLineDrawer(WriteableBitmap bitmap) : base(bitmap)
         {
         }
         
