@@ -1,19 +1,17 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Drawing;
-using System.Windows.Media.Imaging;
+﻿using System.Drawing;
+using ACD.Logic.Bitmap;
 
-namespace ACD.WPF.Drawers
+namespace ACD.Logic.LineDrawers
 {
     public class BresenhamLineDrawer : LineDrawerBase
     {
-        public BresenhamLineDrawer(WriteableBitmap bitmap) : base(bitmap)
+        public BresenhamLineDrawer(IBitmap bitmap) : base(bitmap)
         {
         }
         
         protected override void DrawLineImpl(float x1, float y1, float x2, float y2)
         {
-            var reverce = false;
+            var reverse = false;
             if (Math.Abs(x2 - x1) < Math.Abs(y2 - y1))
             {
                 var buffer = x1;
@@ -22,7 +20,7 @@ namespace ACD.WPF.Drawers
                 buffer = x2;
                 x2 = y2;
                 y2 = buffer;
-                reverce = true;
+                reverse = true;
             }
 
             var x = (int)MathF.Round(x1);
@@ -36,13 +34,13 @@ namespace ACD.WPF.Drawers
 
             do
             {
-                if (reverce)
+                if (reverse)
                 {
-                    DrawPixel(y, x, Color.White);
+                    Bitmap.DrawPixel(y, x, Color.White);
                 }
                 else
                 {
-                    DrawPixel(x, y, Color.White);
+                    Bitmap.DrawPixel(x, y, Color.White);
                 }
 
                 x += xChange;

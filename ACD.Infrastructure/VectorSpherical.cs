@@ -1,6 +1,6 @@
 ﻿using System.Numerics;
 
-namespace ACD.Logic;
+namespace ACD.Infrastructure;
 
 public readonly struct VectorSpherical
 {

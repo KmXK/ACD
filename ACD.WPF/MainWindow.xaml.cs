@@ -7,15 +7,16 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using ACD.Infrastructure;
 using ACD.Logic;
+using ACD.Logic.LineDrawers;
+using ACD.Logic.ModelDrawer;
+using ACD.Logic.VertexTransformer;
 using ACD.Parser;
-using ACD.WPF.Drawers;
 using Microsoft.Win32;
 
 namespace ACD.WPF;
 
 public partial class MainWindow
 {
-    private Model? _model;
     private WriteableBitmap? _bitmap;
     private byte[] _pixelData;
 
@@ -24,7 +25,7 @@ public partial class MainWindow
 
     private Point? _clickPosition = null;
 
-    private ModelDrawer? _modelDrawer;
+    private IModelDrawer? _modelDrawer;
 
     private int _selectedDrawer = 0;
     
@@ -45,8 +46,13 @@ public partial class MainWindow
         if (openFileDialog.ShowDialog() == true)
         {
             var fileName = openFileDialog.FileName;
-            _model = new ObjParser().Parse(File.ReadAllLines(fileName));
-            DrawModel();
+            var model = new ObjParser().Parse(File.ReadAllLines(fileName));
+
+            if (model is not null)
+            {
+                _modelDrawer = new ModelDrawer(model);
+                DrawModel();
+            }
         }
     }
 
@@ -92,17 +98,25 @@ public partial class MainWindow
 
     private void DrawModel()
     {
+        if (_bitmap is null || _modelDrawer is null)
+        {
+            return;
+        }
+        
         FillBitmap(Colors.Black);
 
-        LineDrawerBase drawer = _selectedDrawer switch
+        var vertexTransformer = new VertexScreenTransformer(_camera, _transform);
+        var bitmapAdapter = new WritableBitmapAdapter(_bitmap);
+
+        LineDrawerBase lineDrawer = _selectedDrawer switch
         {
-            0 => new DdaLineLineDrawer(_bitmap),
-            1 => new BresenhamLineDrawer(_bitmap),
+            0 => new DdaLineLineDrawer(bitmapAdapter),
+            1 => new BresenhamLineDrawer(bitmapAdapter),
             _ => throw new ArgumentOutOfRangeException()
         };
 
         _bitmap.Lock();
-        _modelDrawer?.DrawModel(drawer);
+        _modelDrawer.DrawModel(lineDrawer, vertexTransformer);
         _bitmap.Unlock();
     }
     
@@ -133,8 +147,6 @@ public partial class MainWindow
             0);
     }
 
-    
-
     private void MainWindow_OnMouseWheel(object sender, MouseWheelEventArgs e)
     {
         var delta = -e.Delta * 1f;
@@ -156,7 +168,7 @@ public partial class MainWindow
     {
         if (e.Key == Key.D)
         {
-            _selectedDrawer = (_selectedDrawer + 1) % _drawerFactories.Length;
+            _selectedDrawer = (_selectedDrawer + 1) % 2;
             DrawModel();
         }
     }
