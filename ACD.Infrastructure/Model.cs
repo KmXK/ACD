@@ -6,7 +6,7 @@ public class Model
 
     public int MaxPolygonVertices { get; }
     
-    public IReadOnlyCollection<Polygon> Polygons => _polygons;
+    public IReadOnlyList<Polygon> Polygons => _polygons;
 
     public Model(IEnumerable<Polygon> polygons)
     {
