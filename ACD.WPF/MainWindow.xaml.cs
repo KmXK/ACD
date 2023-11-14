@@ -53,7 +53,7 @@ public partial class MainWindow
 
             if (model is not null)
             {
-                _modelDrawer = new Renderer(model);
+                _modelDrawer = new LambertIlluminationRenderer(model);
                 DrawModel();
             }
         }

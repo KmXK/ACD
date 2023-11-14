@@ -1,6 +1,5 @@
 ﻿using System.Drawing;
 using System.Numerics;
-using System.Runtime.Serialization;
 using ACD.Infrastructure;
 using ACD.Infrastructure.Vectors;
 using ACD.Logic.Bitmap;
@@ -8,13 +7,13 @@ using ACD.Logic.VertexTransformer;
 
 namespace ACD.Logic.ModelDrawer;
 
-public class Renderer : IRenderer
+public class LambertIlluminationRenderer : IRenderer
 {
     private readonly Model _model;
     private readonly Vector4[] _vertices;
-    private int[,]? zBuffer;
+    private int[,]? _zBuffer;
 
-    public Renderer(Model model)
+    public LambertIlluminationRenderer(Model model)
     {
         _model = model;
 
@@ -26,16 +25,16 @@ public class Renderer : IRenderer
         IVertexTransformer vertexTransformer,
         Vector3 cameraPosition)
     {
-        if (zBuffer is null || zBuffer.GetLength(0) != bitmap.Width || zBuffer.GetLength(1) != bitmap.Height)
+        if (_zBuffer is null || _zBuffer.GetLength(0) != bitmap.Width || _zBuffer.GetLength(1) != bitmap.Height)
         {
-            zBuffer = new int[bitmap.Width, bitmap.Height];
+            _zBuffer = new int[bitmap.Width, bitmap.Height];
         }
 
         for (var x = 0; x < bitmap.Width; x++)
         {
             for (var y = 0; y < bitmap.Height; y++)
             {
-                zBuffer[x, y] = int.MaxValue;
+                _zBuffer[x, y] = int.MaxValue;
             }
         }
         
@@ -121,9 +120,9 @@ public class Renderer : IRenderer
                     
                     for (var x = from; x <= to; x++)
                     {
-                        if (zBuffer[x, y] > z)
+                        if (_zBuffer[x, y] > z)
                         {
-                            zBuffer[x, y] = (int)z;
+                            _zBuffer[x, y] = (int)z;
                             bitmap.DrawPixel(x, y, color);
                         }
                         
@@ -150,21 +149,21 @@ public class Renderer : IRenderer
         var target = polygon.Vertices[0].Coordinate.ToVector3() - cameraPosition;
         return Vector3.Dot(polygon.Normal, target) < 0;
     }
-}
-
-internal struct Line
-{
-    public readonly Vector3Int From;
-    public readonly Vector3Int To;
     
-    public Line(Vector3Int from, Vector3Int to)
+    private struct Line
     {
-        if (from.Y < to.Y)
+        public readonly Vector3Int From;
+        public readonly Vector3Int To;
+    
+        public Line(Vector3Int from, Vector3Int to)
         {
-            (from, to) = (to, from);
-        }
+            if (from.Y < to.Y)
+            {
+                (from, to) = (to, from);
+            }
 
-        From = from;
-        To = to;
+            From = from;
+            To = to;
+        }
     }
 }
