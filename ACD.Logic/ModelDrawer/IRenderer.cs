@@ -9,5 +9,6 @@ public interface IRenderer
     public void DrawModel(
         IBitmap bitmap,
         IVertexTransformer vertexTransformer,
+        Vector3 lightPosition,
         Vector3 cameraPosition);
 }

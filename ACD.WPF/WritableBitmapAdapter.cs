@@ -1,6 +1,6 @@
-﻿using System.Drawing;
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Media.Imaging;
+using ACD.Infrastructure;
 using ACD.Logic.Bitmap;
 
 namespace ACD.WPF;
@@ -36,7 +36,7 @@ public class WritableBitmapAdapter : IBitmap
             colorData |= color.B;
             colorData |= (uint)(color.G << 8);
             colorData |= (uint)(color.R << 16);
-            colorData |= (uint)(color.A << 24);
+            colorData |= 1 << 24;
             
             *(uint*)pBackBuffer = colorData;
         }

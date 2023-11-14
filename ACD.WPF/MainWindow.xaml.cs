@@ -15,6 +15,7 @@ using ACD.Logic.ModelDrawer;
 using ACD.Logic.VertexTransformer;
 using ACD.Parser;
 using Microsoft.Win32;
+using Color = System.Windows.Media.Color;
 
 namespace ACD.WPF;
 
@@ -25,16 +26,23 @@ public partial class MainWindow
 
     private readonly ModelTransform _transform = new();
     private readonly Camera _camera = new();
+    private Vector3 _lightPosition;
 
     private Point? _clickPosition = null;
 
     private IRenderer? _modelDrawer;
 
     private int _selectedDrawer = 0;
+
+    private bool _isMovingLight = true;
     
     public MainWindow()
     {
         InitializeComponent();
+
+        DataContext = this;
+
+        _lightPosition = _camera.SphericalPosition.ToCartesian();
     }
 
     private void MenuItem_Exit_OnClicked(object sender, RoutedEventArgs e)
@@ -53,7 +61,7 @@ public partial class MainWindow
 
             if (model is not null)
             {
-                _modelDrawer = new LambertIlluminationRenderer(model);
+                _modelDrawer = new PhongIlluminationRenderer(model);
                 DrawModel();
             }
         }
@@ -88,6 +96,11 @@ public partial class MainWindow
 
                 _camera.MoveOnSphere(new Vector2((float)delta.X / 100, (float)delta.Y / 100));
 
+                if (_isMovingLight)
+                {
+                    _lightPosition = _camera.SphericalPosition.ToCartesian();
+                }
+
                 DrawModel();
             }
 
@@ -112,7 +125,7 @@ public partial class MainWindow
         var bitmapAdapter = new WritableBitmapAdapter(_bitmap);
 
         _bitmap.Lock();
-        _modelDrawer.DrawModel(bitmapAdapter, vertexTransformer, _camera.SphericalPosition.ToCartesian());
+        _modelDrawer.DrawModel(bitmapAdapter, vertexTransformer, _lightPosition, _camera.SphericalPosition.ToCartesian());
 
         // DrawAxes(vertexTransformer, bitmapAdapter);
         
@@ -131,8 +144,7 @@ public partial class MainWindow
             var v1 = vertexTransformer.Transform(axis * 1 + Vector4.UnitW);
             var v2 = vertexTransformer.Transform(-axis * 1 + Vector4.UnitW);
 
-            var color = System.Drawing.Color.FromArgb(
-                255, 
+            var color = new ACD.Infrastructure.Color(
                 (byte)(axis.X * 255),
                 (byte)(axis.Y * 255),
                 (byte)(axis.Z * 255));
@@ -193,7 +205,12 @@ public partial class MainWindow
             [Key.Left] = () => _camera.MoveTarget(Vector3.UnitX * -1),
             [Key.Right] = () => _camera.MoveTarget(Vector3.UnitX * 1),
             [Key.Up] = () => _camera.MoveTarget(Vector3.UnitY * -1),
-            [Key.Down] = () => _camera.MoveTarget(Vector3.UnitY * 1)
+            [Key.Down] = () => _camera.MoveTarget(Vector3.UnitY * 1),
+            [Key.E] = () =>
+            {
+                _isMovingLight = !_isMovingLight;
+                if (_isMovingLight) _lightPosition = _camera.SphericalPosition.ToCartesian();
+            }
         };
         
         if (e.Key == Key.D)

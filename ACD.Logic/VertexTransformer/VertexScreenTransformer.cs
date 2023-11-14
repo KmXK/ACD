@@ -1,5 +1,6 @@
 ﻿using System.Numerics;
 using ACD.Infrastructure;
+using Microsoft.VisualBasic;
 
 namespace ACD.Logic.VertexTransformer;
 
@@ -29,5 +30,10 @@ public class VertexScreenTransformer : IVertexTransformer
         
 
         return v;
+    }
+
+    public Vector4 ToWorldSpace(Vector4 vertex)
+    {
+        return Vector4.Transform(vertex, _modelTransform.Transformation);
     }
 }

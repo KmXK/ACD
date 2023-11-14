@@ -3,6 +3,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:system="clr-namespace:System;assembly=System.Runtime"
+        xmlns:wpf="clr-namespace:ACD.WPF"
         mc:Ignorable="d"
         FontSize="16"
         Title="MainWindow" Height="450" Width="800"
@@ -10,7 +12,7 @@
         SizeChanged="MainWindow_OnSizeChanged"
         MouseWheel="MainWindow_OnMouseWheel"
         MouseMove="MainWindow_OnMouseMove"
-        KeyDown="MainWindow_OnKeyDown">
+        KeyDown="MainWindow_OnKeyDown" d:DataContext="{d:DesignInstance {x:Type wpf:MainWindow}}">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -30,5 +32,13 @@
         <DockPanel Grid.Row="1" x:Name="ImageContainer">
             <Image x:Name="Image"></Image>
         </DockPanel>
+        <!-- <StackPanel Grid.Row="1"> -->
+        <!--     <TextBlock>Esc - Close the application</TextBlock> -->
+        <!--     <TextBlock>E   - Toggle light movement</TextBlock> -->
+        <!--     <StackPanel Orientation="Horizontal"> -->
+        <!--         <TextBlock>Polygons count = </TextBlock> -->
+        <!--         <TextBlock Text="{Binding PolygonCount}"/> -->
+        <!--     </StackPanel> -->
+        <!-- </StackPanel> -->
     </Grid>
 </Window>

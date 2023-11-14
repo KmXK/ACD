@@ -4,6 +4,7 @@ using ACD.Infrastructure;
 using ACD.Infrastructure.Vectors;
 using ACD.Logic.Bitmap;
 using ACD.Logic.VertexTransformer;
+using Color = ACD.Infrastructure.Color;
 
 namespace ACD.Logic.ModelDrawer;
 
@@ -23,6 +24,7 @@ public class LambertIlluminationRenderer : IRenderer
     public void DrawModel(
         IBitmap bitmap,
         IVertexTransformer vertexTransformer,
+        Vector3 lightPosition,
         Vector3 cameraPosition)
     {
         if (_zBuffer is null || _zBuffer.GetLength(0) != bitmap.Width || _zBuffer.GetLength(1) != bitmap.Height)
@@ -58,8 +60,8 @@ public class LambertIlluminationRenderer : IRenderer
             var polygon = _model.Polygons[pi];
 
             if (!IsPolygonVisible(polygon, cameraPosition)) continue;
-            
-            var color = GetPolygonColor(Color.White, Color.White, cameraPosition, polygon);
+
+            var color = GetPolygonColor(new Color(255, 255, 255), new Color(255, 255, 255), lightPosition, polygon);
             
             var baseIndex = pi * _model.MaxPolygonVertices;
 
@@ -144,7 +146,7 @@ public class LambertIlluminationRenderer : IRenderer
         var r = (byte)MathF.Round(intensity * light.X * surface.X * 255);
         var g = (byte)MathF.Round(intensity * light.Y * surface.Y * 255);
         var b = (byte)MathF.Round(intensity * light.Z * surface.Z * 255);
-        return Color.FromArgb(255, r, g, b);
+        return new Color(r, g, b);
     }
     
     private static bool IsPolygonVisible(Polygon polygon, Vector3 cameraPosition)

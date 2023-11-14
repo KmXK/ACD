@@ -15,7 +15,7 @@ public class ObjParser : IParser
         var vertexNormals = new List<Vector3>();
         var polygons = new List<Polygon>();
         
-        foreach (var tokens in parseData.Select(x => x.Trim().Split(' ')))
+        foreach (var tokens in parseData.Select(x => x.Trim().Split(' ').Where(x => x.Length > 0).ToArray()))
         {
             try
             {
@@ -74,7 +74,18 @@ public class ObjParser : IParser
 
     private static Vector3 ParseVertexNormal(IReadOnlyList<string> tokens)
     {
-        // TODO parse vertex normal
+        if (tokens.Count != 4)
+        {
+            throw new InvalidOperationException("Invalid polygon syntax");
+        }
+
+        if (ConvertToFloat(tokens[1], out var x) &&
+            ConvertToFloat(tokens[2], out var y) &&
+            ConvertToFloat(tokens[3], out var z))
+        {
+            return new Vector3(x, y, z);
+        }
+
         return new Vector3();
     }
 
