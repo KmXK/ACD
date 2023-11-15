@@ -11,14 +11,14 @@ namespace ACD.Logic.ModelDrawer;
 public class LambertIlluminationRenderer : IRenderer
 {
     private readonly Model _model;
-    private readonly Vector4[] _vertices;
+    private readonly VertexTransform[] _vertices;
     private int[,]? _zBuffer;
 
     public LambertIlluminationRenderer(Model model)
     {
         _model = model;
 
-        _vertices = new Vector4[model.Polygons.Count * model.MaxPolygonVertices];
+        _vertices = new VertexTransform[model.Polygons.Count * model.MaxPolygonVertices];
     }
     
     public void DrawModel(
@@ -68,9 +68,9 @@ public class LambertIlluminationRenderer : IRenderer
             for (var i = 0; i < polygon.Vertices.Count; i++)
             {
                 points[i] = new Vector3Int(
-                    (int)_vertices[baseIndex + i].X,
-                    (int)_vertices[baseIndex + i].Y,
-                    (int)(_vertices[baseIndex + i].Z * 10_000_000));
+                    (int)_vertices[baseIndex + i].ScreenSpace.X,
+                    (int)_vertices[baseIndex + i].ScreenSpace.Y,
+                    (int)_vertices[baseIndex + i].ClipSpace.Z);
             }
 
             for (var i = 0; i < polygon.Vertices.Count - 2; i++)

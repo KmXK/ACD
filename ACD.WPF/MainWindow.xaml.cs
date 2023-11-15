@@ -132,28 +132,6 @@ public partial class MainWindow
         _bitmap.Unlock();
     }
 
-    private void DrawAxes(
-        IVertexTransformer vertexTransformer, 
-        IBitmap bitmap)
-    {
-        var axes = new[] { Vector4.UnitX, Vector4.UnitY, Vector4.UnitZ };
-        var lineDrawer = new DdaLineLineDrawer(bitmap);
-        
-        foreach (var axis in axes)
-        {
-            var v1 = vertexTransformer.Transform(axis * 1 + Vector4.UnitW);
-            var v2 = vertexTransformer.Transform(-axis * 1 + Vector4.UnitW);
-
-            var color = new ACD.Infrastructure.Color(
-                (byte)(axis.X * 255),
-                (byte)(axis.Y * 255),
-                (byte)(axis.Z * 255));
-            
-            lineDrawer.DrawLine(v1.X, v1.Y, v2.X, v2.Y, color);
-        }
-        
-    }
-
     private void FillBitmap(Color fillColor)
     {
         if (_bitmap == null)

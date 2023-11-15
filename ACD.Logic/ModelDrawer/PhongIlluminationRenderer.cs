@@ -11,7 +11,7 @@ namespace ACD.Logic.ModelDrawer;
 public class PhongIlluminationRenderer : IRenderer
 {
     private readonly Model _model;
-    private readonly Vector4[] _vertices, _verticesWorldSpace;
+    private readonly VertexTransform[] _vertices;
     private readonly Vector3[] _normals;
     private int[,]? _zBuffer;
 
@@ -21,8 +21,7 @@ public class PhongIlluminationRenderer : IRenderer
 
         var maxVerticesCount = model.Polygons.Count * model.MaxPolygonVertices;
         
-        _verticesWorldSpace = new Vector4[maxVerticesCount];
-        _vertices = new Vector4[maxVerticesCount];
+        _vertices = new VertexTransform[maxVerticesCount];
         _normals = new Vector3[maxVerticesCount];
     }
     
@@ -61,7 +60,6 @@ public class PhongIlluminationRenderer : IRenderer
                 
                 var n = Vector3.Normalize(vertexTransformer.ToWorldSpace(normal.Value.ToVector4()).ToVector3());
 
-                _verticesWorldSpace[vertexNumber] = vertexTransformer.ToWorldSpace(vertex);
                 _vertices[vertexNumber] = v;
                 _normals[vertexNumber] = n;
             }
@@ -84,9 +82,9 @@ public class PhongIlluminationRenderer : IRenderer
             for (var i = 0; i < polygon.Vertices.Count; i++)
             {
                 points[i] = new Vector3Int(
-                    (int)_vertices[baseIndex + i].X,
-                    (int)_vertices[baseIndex + i].Y,
-                    (int)(_vertices[baseIndex + i].Z * 10_000_000));
+                    (int)_vertices[baseIndex + i].ScreenSpace.X,
+                    (int)_vertices[baseIndex + i].ScreenSpace.Y,
+                    (int)_vertices[baseIndex + i].ClipSpace.Z);
             }
 
             for (var i = 0; i < polygon.Vertices.Count - 2; i++)
@@ -223,7 +221,7 @@ public class PhongIlluminationRenderer : IRenderer
 
         for (var i = 0; i < polygon.Vertices.Count; i++)
         {
-            var target = _verticesWorldSpace[baseIndex + i].ToVector3() - cameraPosition;
+            var target = _vertices[baseIndex + i].WorldSpace.ToVector3() - cameraPosition;
             if (Vector3.Dot(polygon.Normal, target) > 0) return false;
         }
 

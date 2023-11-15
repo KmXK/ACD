@@ -17,23 +17,39 @@ public class VertexScreenTransformer : IVertexTransformer
         _modelTransform = modelTransform;
     }
     
-    public Vector4 Transform(Vector4 vertex)
+    public VertexTransform Transform(Vector4 vertex)
     {
-        var v = Vector4.Transform(vertex, _modelTransform.Transformation);
-        
-        v = Vector4.Transform(v, _camera.View);
-        v = Vector4.Transform(v, _camera.Projection);
-        
-        v /= v.W;
-        
-        v = Vector4.Transform(v, _camera.ViewPort);
-        
+        var worldSpace = ToWorldSpace(vertex);
 
-        return v;
+        var viewSpace = ToViewSpace(worldSpace);
+        var clipSpace = ToClipSpace(viewSpace);
+
+        var screenSpace = clipSpace;
+        
+        screenSpace /= screenSpace.W;
+
+        screenSpace = ToScreenSpace(screenSpace);
+
+        return new VertexTransform(worldSpace, viewSpace, clipSpace, screenSpace);
     }
 
-    public Vector4 ToWorldSpace(Vector4 vertex)
+    public Vector4 ToWorldSpace(Vector4 modelSpaceVertex)
     {
-        return Vector4.Transform(vertex, _modelTransform.Transformation);
+        return Vector4.Transform(modelSpaceVertex, _modelTransform.Transformation);
+    }
+
+    public Vector4 ToViewSpace(Vector4 worldSpaceVertex)
+    {
+        return Vector4.Transform(worldSpaceVertex, _camera.View);
+    }
+    
+    public Vector4 ToClipSpace(Vector4 viewSpaceVertex)
+    {
+        return Vector4.Transform(viewSpaceVertex, _camera.Projection);
+    }
+    
+    public Vector4 ToScreenSpace(Vector4 clipSpaceVertex)
+    {
+        return Vector4.Transform(clipSpaceVertex, _camera.ViewPort);
     }
 }

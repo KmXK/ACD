@@ -14,8 +14,5 @@
       <ProjectReference Include="..\ACD.Parser\ACD.Parser.csproj" />
     </ItemGroup>
 
-    <ItemGroup>
-      <Folder Include="Drawers\" />
-    </ItemGroup>
 
 </Project>
