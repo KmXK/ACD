@@ -209,7 +209,11 @@ public partial class MainWindow
             [Key.Left] = () => _camera.MoveTarget(Vector3.UnitX * -1),
             [Key.Right] = () => _camera.MoveTarget(Vector3.UnitX * 1),
             [Key.Up] = () => _camera.MoveTarget(Vector3.UnitY * -1),
-            [Key.Down] = () => _camera.MoveTarget(Vector3.UnitY * 1),
+            [Key.Down] = () => _camera.MoveTarget(Vector3.UnitY * 1), 
+            [Key.A] = () => _transform.Position += Vector3.UnitX * -1,
+            [Key.D] = () => _transform.Position += Vector3.UnitX * 1,
+            [Key.W] = () => _transform.Position += Vector3.UnitY * -1,
+            [Key.S] = () => _transform.Position += Vector3.UnitY * 1,
             [Key.E] = () =>
             {
                 _isMovingLight = !_isMovingLight;
@@ -217,16 +221,16 @@ public partial class MainWindow
             }
         };
         
-        if (e.Key == Key.D)
-        {
-            _selectedDrawer = (_selectedDrawer + 1) % 2;
-            DrawModel();
-        }
-        else
-        {
+        // if (e.Key == Key.D)
+        // {
+        //     _selectedDrawer = (_selectedDrawer + 1) % 2;
+        //     DrawModel();
+        // }
+        // else
+        // {
             dict.TryGetValue(e.Key, out var action);
             action?.Invoke();
             DrawModel();
-        }
+        // }
     }
 }

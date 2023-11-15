@@ -148,7 +148,12 @@ public class PhongIlluminationRenderer : IRenderer
 
                             var normal = InterpolateNormal(data, new Vector2Int(x, y));
 
-                            var color = GetVertexColor(new Color(255,255,255), new Color(255,255,255), lightPosition, cameraPosition, normal);
+                            var color = GetVertexColor(
+                                new Color(255,255,255),
+                                new Color(255,255,255),
+                                lightPosition,
+                                cameraPosition,
+                                normal);
                             
                             bitmap.DrawPixel(x, y, color);
                         }
