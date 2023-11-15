@@ -58,7 +58,7 @@ public class PhongIlluminationRenderer : IRenderer
                     throw new Exception($"Normal is null for vertex ({vertex.X}, {vertex.Y}, {vertex.Z})");
                 }
                 
-                var n = vertexTransformer.ToWorldSpace(normal.Value.ToVector4()).ToVector3();
+                var n = Vector3.Normalize(vertexTransformer.ToWorldSpace(normal.Value.ToVector4()).ToVector3());
                 
                 _vertices[vertexNumber] = v;
                 _normals[vertexNumber] = n;
@@ -141,8 +141,8 @@ public class PhongIlluminationRenderer : IRenderer
                             _zBuffer[x, y] = (int)z;
 
                             data[0] = (points[0].ToVector2Int(), _normals[baseIndex + 0]);
-                            data[1] = (points[1].ToVector2Int(), _normals[baseIndex + 1]);
-                            data[2] = (points[2].ToVector2Int(), _normals[baseIndex + 2]);
+                            data[1] = (points[i + 1].ToVector2Int(), _normals[baseIndex + i + 1]);
+                            data[2] = (points[i + 2].ToVector2Int(), _normals[baseIndex + i + 2]);
 
                             var normal = InterpolateNormal(data, new Vector2Int(x, y));
 
@@ -158,7 +158,9 @@ public class PhongIlluminationRenderer : IRenderer
         }
     }
 
-    private static Vector3 InterpolateNormal(Span<(Vector2Int vertex, Vector3 normal)> data, Vector2Int vertex)
+    private static Vector3 InterpolateNormal(
+        Span<(Vector2Int vertex, Vector3 normal)> data,
+        Vector2Int vertex)
     {
         var (v1, v2, v3) = (data[0].vertex.ToVector2(), data[1].vertex.ToVector2(), data[2].vertex.ToVector2());
         var (n1, n2, n3) = (data[0].normal, data[1].normal, data[2].normal);
@@ -171,7 +173,7 @@ public class PhongIlluminationRenderer : IRenderer
                  ((v2.Y - v3.Y) * (v1.X - v3.X) + (v3.X - v2.X) * (v1.Y - v3.Y));
         var w3 = 1 - w1 - w2;
 
-        return (n1 * w1 + n2 * w2 + n3 * w3) / (w1 + w2 + w3);
+        return Vector3.Normalize((n1 * w1 + n2 * w2 + n3 * w3) / (w1 + w2 + w3));
     }
     
     private static Color GetVertexColor(Color lightColor, Color surfaceColor, Vector3 lightPosition, Vector3 cameraPosition, Vector3 normal)
