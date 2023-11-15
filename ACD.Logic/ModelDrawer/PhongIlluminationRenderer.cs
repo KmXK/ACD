@@ -11,7 +11,7 @@ namespace ACD.Logic.ModelDrawer;
 public class PhongIlluminationRenderer : IRenderer
 {
     private readonly Model _model;
-    private readonly Vector4[] _vertices;
+    private readonly Vector4[] _vertices, _verticesWorldSpace;
     private readonly Vector3[] _normals;
     private int[,]? _zBuffer;
 
@@ -21,6 +21,7 @@ public class PhongIlluminationRenderer : IRenderer
 
         var maxVerticesCount = model.Polygons.Count * model.MaxPolygonVertices;
         
+        _verticesWorldSpace = new Vector4[maxVerticesCount];
         _vertices = new Vector4[maxVerticesCount];
         _normals = new Vector3[maxVerticesCount];
     }
@@ -59,7 +60,8 @@ public class PhongIlluminationRenderer : IRenderer
                 }
                 
                 var n = Vector3.Normalize(vertexTransformer.ToWorldSpace(normal.Value.ToVector4()).ToVector3());
-                
+
+                _verticesWorldSpace[vertexNumber] = vertexTransformer.ToWorldSpace(vertex);
                 _vertices[vertexNumber] = v;
                 _normals[vertexNumber] = n;
             }
@@ -75,7 +77,7 @@ public class PhongIlluminationRenderer : IRenderer
         {
             var polygon = _model.Polygons[pi];
 
-            if (!IsPolygonVisible(polygon, cameraPosition)) continue;
+            if (!IsPolygonVisible(pi, cameraPosition)) continue;
             
             var baseIndex = pi * _model.MaxPolygonVertices;
 
@@ -208,10 +210,19 @@ public class PhongIlluminationRenderer : IRenderer
         return lightColor * Math.Pow(dot, 30);
     }
     
-    private static bool IsPolygonVisible(Polygon polygon, Vector3 cameraPosition)
+    private bool IsPolygonVisible(int polygonNumber, Vector3 cameraPosition)
     {
-        var target = polygon.Vertices[0].Coordinate.ToVector3() - cameraPosition;
-        return Vector3.Dot(polygon.Normal, target) < 0;
+        var polygon = _model.Polygons[polygonNumber];
+        
+        var baseIndex = polygonNumber * _model.MaxPolygonVertices;
+
+        for (var i = 0; i < polygon.Vertices.Count; i++)
+        {
+            var target = _verticesWorldSpace[baseIndex + i].ToVector3() - cameraPosition;
+            if (Vector3.Dot(polygon.Normal, target) > 0) return false;
+        }
+
+        return true;
     }
     
     private struct Line

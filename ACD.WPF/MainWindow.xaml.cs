@@ -185,6 +185,10 @@ public partial class MainWindow
     {
         var delta = -e.Delta * 1f;
 
+        if (Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
+        {
+            delta *= 3;
+        }
         if (Keyboard.Modifiers.HasFlag(ModifierKeys.Shift))
         {
             delta /= 30f;
