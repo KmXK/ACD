@@ -160,44 +160,6 @@ public class PhongIlluminationRenderer : IRenderer
 
     private static Vector3 InterpolateNormal(Span<(Vector2Int vertex, Vector3 normal)> data, Vector2Int vertex)
     {
-        // var top = data[0].vertex.X == data[1].vertex.X ? data[0] : data[2];
-        // var left = data[0].vertex.X == data[1].vertex.X ? data[1] : data[0];
-        // var right = data[0].vertex.X == data[1].vertex.X ? data[2] : data[1];
-        //
-        // if (right.vertex.X - left.vertex.X == 0)
-        // {
-        //     return right.normal;
-        // }
-        //
-        // int xr;
-        //
-        // if (vertex.X != top.vertex.X)
-        // {
-        //     var k1 = (vertex.Y - top.vertex.Y) / (vertex.X - top.vertex.X);
-        //     var k2 = (right.vertex.Y - left.vertex.Y) / (right.vertex.X - left.vertex.X);
-        //
-        //     if (k1 == k2)
-        //     {
-        //         return top.normal;
-        //     }
-        //
-        //     xr = left.vertex.X + (left.vertex.Y - vertex.Y) / (k1 - k2);
-        // }
-        // else
-        // {
-        //     xr = vertex.X;
-        //
-        //     if (vertex.X == top.vertex.X)
-        //     {
-        //         return top.normal;
-        //     }
-        // }
-        //
-        // var n1 = left.normal + (right.normal - left.normal) * (xr - left.vertex.X) / (right.vertex.X - left.vertex.X);
-        // var n2 = top.normal + (n1 - top.normal) * (vertex.X - top.vertex.X) / (xr - top.vertex.X);
-        //
-        // return n2;
-
         var (v1, v2, v3) = (data[0].vertex.ToVector2(), data[1].vertex.ToVector2(), data[2].vertex.ToVector2());
         var (n1, n2, n3) = (data[0].normal, data[1].normal, data[2].normal);
 
