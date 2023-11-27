@@ -84,7 +84,7 @@ public class PhongIlluminationRenderer : IRenderer
                 points[i] = new Vector3Int(
                     (int)_vertices[baseIndex + i].ScreenSpace.X,
                     (int)_vertices[baseIndex + i].ScreenSpace.Y,
-                    (int)_vertices[baseIndex + i].ClipSpace.Z);
+                    (int)(_vertices[baseIndex + i].ScreenSpace.Z * 100_000_000));
             }
 
             for (var i = 0; i < polygon.Vertices.Count - 2; i++)
@@ -146,12 +146,19 @@ public class PhongIlluminationRenderer : IRenderer
 
                             var normal = InterpolateNormal(data, new Vector2Int(x, y));
 
+                            data[0].normal = _vertices[baseIndex + 0].WorldSpace.ToVector3();
+                            data[1].normal = _vertices[baseIndex + i + 1].WorldSpace.ToVector3();
+                            data[2].normal = _vertices[baseIndex + i + 2].WorldSpace.ToVector3();
+
+                            var interpolatedVertex = InterpolateVertex(data, new Vector2Int(x, y));
+                            
                             var color = GetVertexColor(
                                 new Color(255,255,255),
-                                new Color(255,255,255),
+                                new Color(255,200,200),
                                 lightPosition,
                                 cameraPosition,
-                                normal);
+                                normal,
+                                interpolatedVertex);
                             
                             bitmap.DrawPixel(x, y, color);
                         }
@@ -181,29 +188,57 @@ public class PhongIlluminationRenderer : IRenderer
         return Vector3.Normalize((n1 * w1 + n2 * w2 + n3 * w3) / (w1 + w2 + w3));
     }
     
-    private static Color GetVertexColor(Color lightColor, Color surfaceColor, Vector3 lightPosition, Vector3 cameraPosition, Vector3 normal)
+    private static Vector3 InterpolateVertex(
+        Span<(Vector2Int vertex, Vector3 anchorVertex)> data,
+        Vector2Int vertex)
     {
+        var (v1, v2, v3) = (data[0].vertex.ToVector2(), data[1].vertex.ToVector2(), data[2].vertex.ToVector2());
+
+        if ((v2.Y - v3.Y) * (v1.X - v3.X) + (v3.X - v2.X) * (v1.Y - v3.Y) == 0) return data[0].anchorVertex;
+
+        var w1 = ((v2.Y - v3.Y) * (vertex.X - v3.X) + (v3.X - v2.X) * (vertex.Y - v3.Y)) /
+                 ((v2.Y - v3.Y) * (v1.X - v3.X) + (v3.X - v2.X) * (v1.Y - v3.Y));
+        var w2 = ((v3.Y - v1.Y) * (vertex.X - v3.X) + (v1.X - v3.X) * (vertex.Y - v3.Y)) /
+                 ((v2.Y - v3.Y) * (v1.X - v3.X) + (v3.X - v2.X) * (v1.Y - v3.Y));
+        var w3 = 1 - w1 - w2;
+
+        var (a1, a2, a3) = (data[0].anchorVertex, data[1].anchorVertex, data[2].anchorVertex);
+
+        return (a1 * w1 + a2 * w2 + a3 * w3) / (w1 + w2 + w3);
+    }
+    
+    private static Color GetVertexColor(
+        Color lightColor,
+        Color surfaceColor,
+        Vector3 lightPosition,
+        Vector3 cameraPosition,
+        Vector3 normal,
+        Vector3 vertex)
+    {
+        var lightDirection = Vector3.Normalize(vertex - lightPosition);
+        var cameraDirection = Vector3.Normalize(vertex - cameraPosition);
+        
         var ambientColor = surfaceColor;
-        var diffuseColor = GetDiffuseColor(surfaceColor, lightPosition, normal);
-        var specularColor = GetSpecularColor(lightColor, lightPosition, cameraPosition, normal);
+        var diffuseColor = GetDiffuseColor(surfaceColor, lightDirection, normal);
+        var specularColor = GetSpecularColor(lightColor, lightDirection, cameraDirection, normal);
 
         return ambientColor * 0.3 + diffuseColor * 0.5 + specularColor * 0.8;
     }
 
-    private static Color GetDiffuseColor(Color surfaceColor, Vector3 lightPosition, Vector3 normal)
+    private static Color GetDiffuseColor(Color surfaceColor, Vector3 lightDirection, Vector3 normal)
     {
-        var intensity = Math.Max(Vector3.Dot(Vector3.Normalize(lightPosition), Vector3.Normalize(normal)), 0);
+        var intensity = Math.Max(0, Vector3.Dot(-lightDirection, normal));
         return surfaceColor * intensity;
     }
     
-    private static Color GetSpecularColor(Color lightColor, Vector3 lightPosition, Vector3 cameraPosition, Vector3 normal)
+    private static Color GetSpecularColor(Color lightColor, Vector3 lightDirection, Vector3 cameraDirection, Vector3 normal)
     {
-        lightPosition = Vector3.Normalize(-lightPosition);
-        cameraPosition = Vector3.Normalize(-cameraPosition);
+        lightDirection = Vector3.Normalize(lightDirection);
+        cameraDirection = Vector3.Normalize(cameraDirection);
         
-        var reflectionVector = lightPosition - 2 * Vector3.Dot(lightPosition, normal) * normal;
+        var reflectionVector = lightDirection - 2 * Vector3.Dot(lightDirection, normal) * normal;
 
-        var dot = Vector3.Dot(reflectionVector, cameraPosition);
+        var dot = Vector3.Dot(reflectionVector, cameraDirection);
 
         if (dot > 0)
         {
@@ -223,6 +258,8 @@ public class PhongIlluminationRenderer : IRenderer
         {
             var target = _vertices[baseIndex + i].WorldSpace.ToVector3() - cameraPosition;
             if (Vector3.Dot(polygon.Normal, target) > 0) return false;
+
+            if (_vertices[baseIndex + i].ClipSpace.Z < 0) return false;
         }
 
         return true;

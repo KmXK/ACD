@@ -144,12 +144,16 @@ public partial class MainWindow
         var bytesPerPixel = (_bitmap.Format.BitsPerPixel + 7) / 8;
         var stride = width * bytesPerPixel;
 
-        for (var i = 0; i < _pixelData.Length; i += bytesPerPixel)
+        if (_pixelData[2] != fillColor.R || _pixelData[1] != fillColor.G ||
+            _pixelData[0] != fillColor.B || _pixelData[3] != fillColor.A)
         {
-            _pixelData[i + 2] = fillColor.R;
-            _pixelData[i + 1] = fillColor.G;
-            _pixelData[i + 0] = fillColor.B;
-            _pixelData[i + 3] = fillColor.A;
+            for (var i = 0; i < _pixelData.Length; i += bytesPerPixel)
+            {
+                _pixelData[i + 2] = fillColor.R;
+                _pixelData[i + 1] = fillColor.G;
+                _pixelData[i + 0] = fillColor.B;
+                _pixelData[i + 3] = fillColor.A;
+            }
         }
         
         _bitmap.WritePixels(
@@ -177,6 +181,12 @@ public partial class MainWindow
         }
         
         _camera.Zoom(delta);
+        
+        if (_isMovingLight)
+        {
+            _lightPosition = _camera.SphericalPosition.ToCartesian();
+        }
+        
         DrawModel();
     }
 
