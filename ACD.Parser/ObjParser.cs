@@ -68,7 +68,18 @@ public class ObjParser : IParser
 
     private static Vector3 ParseVertexTexture(IReadOnlyList<string> tokens)
     {
-        // TODO parse vertex texture
+        if (tokens.Count is not (3 or 4))
+        {
+            throw new InvalidOperationException("Invalid vertex texture syntax");
+        }
+
+        if (ConvertToFloat(tokens[1], out var u) &&
+            ConvertToFloat(tokens[2], out var v) &&
+            ConvertToFloat(tokens[3], out var w))
+        {
+            return new Vector3(u, v, w);
+        }
+
         return new Vector3();
     }
 
