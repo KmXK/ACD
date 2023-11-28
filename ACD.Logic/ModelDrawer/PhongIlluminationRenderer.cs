@@ -10,16 +10,14 @@ namespace ACD.Logic.ModelDrawer;
 public class PhongIlluminationRenderer : IRenderer
 {
     private readonly Model _model;
-    private readonly Color[,] _diffuseMap;
     private readonly VertexTransform[] _vertices;
     private readonly Vector3[] _normals;
     private int[,]? _zBuffer;
     private readonly Vector3?[] _textureCoords;
 
-    public PhongIlluminationRenderer(Model model, Color[,] diffuseMap)
+    public PhongIlluminationRenderer(Model model)
     {
         _model = model;
-        _diffuseMap = diffuseMap;
 
         var maxVerticesCount = model.Polygons.Count * model.MaxPolygonVertices;
         

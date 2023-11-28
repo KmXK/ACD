@@ -74,22 +74,7 @@ public partial class MainWindow
             return;
         }
         
-        openFileDialog.Filter = "Image (*.JPG, *.PNG)|*.jpg;*.png";
-
-        if (openFileDialog.ShowDialog() != true)
-        {
-            return;
-        }
-
-        var colorArray = GetColorArrayFromImagePath(openFileDialog.FileName);
-
-        if (colorArray == null)
-        {
-            MessageBox.Show("Invalid image format.");
-            return;
-        }
-        
-        _modelDrawer = new PhongIlluminationRenderer(model, colorArray);
+        _modelDrawer = new PhongIlluminationRenderer(model);
         DrawModel();
     }
 
