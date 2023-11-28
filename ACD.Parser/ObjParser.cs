@@ -4,7 +4,7 @@ using ACD.Infrastructure;
 
 namespace ACD.Parser;
 
-public class ObjParser
+public class ObjParser(IImagePixelsParser imagePixelsParser)
 {
     private readonly List<Vector4> _vertices = new();
     private readonly List<Vector3> _vertexTextures = new();
