@@ -10,6 +10,11 @@ public static class VectorHelper
         return new Vector3(v.X, v.Y, v.Z);
     }
     
+    public static Vector2 ToVector2(this Vector3 v)
+    {
+        return new Vector2(v.X, v.Y);
+    }
+    
     public static Vector4 ToVector4(this Vector3 v)
     {
         return new Vector4(v.X, v.Y, v.Z, 0);

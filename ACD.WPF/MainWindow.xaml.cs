@@ -54,16 +54,66 @@ public partial class MainWindow
     {
         var openFileDialog = new OpenFileDialog { Filter = "Obj files (*.obj)|*.obj" };
 
+        Model? model = null;
+        
         if (openFileDialog.ShowDialog() == true)
         {
             var fileName = openFileDialog.FileName;
-            var model = new ObjParser().Parse(File.ReadAllLines(fileName));
+            model = new ObjParser().Parse(File.ReadAllLines(fileName));
+        }
+        
+        if (model is null)
+        {
+            return;  
+        }
 
-            if (model is not null)
+        openFileDialog.Filter = "JPG files (*.jpg)|*.jpg";
+
+        if (openFileDialog.ShowDialog() == true)
+        {
+            try
             {
-                _modelDrawer = new PhongIlluminationRenderer(model);
+                var fileName = openFileDialog.FileName;
+
+                var bitmapDecoder = new JpegBitmapDecoder(
+                    new Uri(fileName), 
+                    BitmapCreateOptions.None,
+                    BitmapCacheOption.Default);
+
+                var bitmapFrame = bitmapDecoder.Frames[0];
+
+                var writeableBitmap = new WriteableBitmap(bitmapFrame);
+
+                var width = writeableBitmap.PixelWidth;
+                var height = writeableBitmap.PixelHeight;
+                var stride = (writeableBitmap.Format.BitsPerPixel + 7) / 8 * width;
+                var pixelData = new byte[stride * height];
+
+                writeableBitmap.CopyPixels(pixelData, stride, 0);
+
+                var rgbArray = new ACD.Infrastructure.Color[width, height];
+
+                for (var x = 0; x < width; x++)
+                {
+                    for (var y = 0; y < height; y++)
+                    {
+                        var index = y * stride + x * 4;
+                        var blue = pixelData[index];
+                        var green = pixelData[index + 1];
+                        var red = pixelData[index + 2];
+
+                        rgbArray[x, y] = new ACD.Infrastructure.Color(red, green, blue);
+                    }
+                }
+
+                _modelDrawer = new PhongIlluminationRenderer(model, rgbArray);
                 DrawModel();
             }
+            catch
+            {
+                MessageBox.Show("Invalid image syntax");
+            }
+
         }
     }
 

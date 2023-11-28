@@ -11,18 +11,22 @@ namespace ACD.Logic.ModelDrawer;
 public class PhongIlluminationRenderer : IRenderer
 {
     private readonly Model _model;
+    private readonly Color[,] _diffuseMap;
     private readonly VertexTransform[] _vertices;
     private readonly Vector3[] _normals;
     private int[,]? _zBuffer;
+    private readonly Vector3?[] _textureCoords;
 
-    public PhongIlluminationRenderer(Model model)
+    public PhongIlluminationRenderer(Model model, Color[,] diffuseMap)
     {
         _model = model;
+        _diffuseMap = diffuseMap;
 
         var maxVerticesCount = model.Polygons.Count * model.MaxPolygonVertices;
         
         _vertices = new VertexTransform[maxVerticesCount];
         _normals = new Vector3[maxVerticesCount];
+        _textureCoords = new Vector3?[maxVerticesCount];
     }
     
     public void DrawModel(
@@ -50,7 +54,7 @@ public class PhongIlluminationRenderer : IRenderer
             {
                 var vertexNumber = pi * _model.MaxPolygonVertices + vi;
                 
-                var (vertex, _, normal) = polygon.Vertices[vi];
+                var (vertex, texture, normal) = polygon.Vertices[vi];
                 var v = vertexTransformer.Transform(vertex);
 
                 if (normal is null)
@@ -62,12 +66,16 @@ public class PhongIlluminationRenderer : IRenderer
 
                 _vertices[vertexNumber] = v;
                 _normals[vertexNumber] = n;
+
+                if (texture.HasValue) texture = texture.Value with { Z = 0 };
+                
+                _textureCoords[vertexNumber] = texture;
             }
         });
 
         Span<Vector3Int> points = stackalloc Vector3Int[_model.MaxPolygonVertices];
         Span<Line> lines = stackalloc Line[3];
-        Span<Vector3Int> coords = stackalloc Vector3Int[2];
+        Span<Vector3> coords = stackalloc Vector3[2];
         
         Span<(Vector2Int vertex, Vector3 normal)> data = stackalloc (Vector2Int vertex, Vector3 normal)[3];
         
@@ -92,6 +100,20 @@ public class PhongIlluminationRenderer : IRenderer
                 var maxY = Math.Max(Math.Max(points[0].Y, points[i + 1].Y), points[i + 2].Y);
                 var minY = Math.Min(Math.Min(points[0].Y, points[i + 1].Y), points[i + 2].Y);
 
+                if ((minY < 0 && maxY < 0) || (minY >= bitmap.Height && maxY >= bitmap.Height))
+                {
+                    continue;
+                }
+                
+                var maxX = Math.Max(Math.Max(points[0].X, points[i + 1].X), points[i + 2].X);
+                var minX = Math.Min(Math.Min(points[0].X, points[i + 1].X), points[i + 2].X);
+
+                if ((minX < 0 && maxX < 0) ||
+                    (minX >= bitmap.Width && maxX >= bitmap.Width))
+                {
+                    continue;
+                }
+                
                 maxY = Math.Clamp(maxY, 0, bitmap.Height - 1);
                 minY = Math.Clamp(minY, 0, bitmap.Height - 1);
 
@@ -110,18 +132,21 @@ public class PhongIlluminationRenderer : IRenderer
                         if (line.From.Y >= y && line.To.Y < y)
                         {
                             var dy = y - line.From.Y;
-                            var dx = (line.To.X - line.From.X) * dy / (line.To.Y - line.From.Y);
-                            var dz = (line.To.Z - line.From.Z) * dy / (line.To.Y - line.From.Y);
+                            var dx = (line.To.X - line.From.X) * 1f * dy / (line.To.Y - line.From.Y);
+                            var dz = (line.To.Z - line.From.Z) * 1f * dy / (line.To.Y - line.From.Y);
 
-                            coords[c++] = new Vector3Int(line.From.X + dx, y, line.From.Z + dz);
+                            coords[c++] = new Vector3(line.From.X + dx, y, line.From.Z + dz);
                         }
                         else if (line.From.Y == line.To.Y && line.To.Y == y)
                         {
-                            coords[0] = line.From;
-                            coords[1] = line.To;
+                            coords[0] = line.From.ToVector3();
+                            coords[1] = line.To.ToVector3();
+                            c = 2;  
                             break;
                         }
                     }
+
+                    if (c < 2) continue;
 
                     var from = Math.Clamp(coords[0].X, 0, bitmap.Width - 1);
                     var to = Math.Clamp(coords[1].X, 0, bitmap.Width - 1);
@@ -132,9 +157,11 @@ public class PhongIlluminationRenderer : IRenderer
                     }
 
                     var z = coords[0].Z * 1f;
-                    var deltaZ = from == to ? 0f : (coords[1].Z - coords[0].Z + 0f) / (to - from);
+                    var deltaZ = Math.Abs(from - to) < 0.001
+                        ? 0f
+                        : (coords[1].Z - coords[0].Z + 0f) / (to - from);
 
-                    for (var x = from; x <= to; x++)
+                    for (var x = (int)Math.Ceiling(from); x <= (int)to; x++)
                     {
                         if (_zBuffer[x, y] > z)
                         {
@@ -151,10 +178,36 @@ public class PhongIlluminationRenderer : IRenderer
                             data[2].normal = _vertices[baseIndex + i + 2].WorldSpace.ToVector3();
 
                             var interpolatedVertex = InterpolateVertex(data, new Vector2Int(x, y));
+
+                            var surfaceColor = new Color(0, 0, 0);
+                            
+                            if (_textureCoords[baseIndex].HasValue &&
+                                _textureCoords[baseIndex + i + 1].HasValue &&
+                                _textureCoords[baseIndex + i + 2].HasValue)
+                            {
+                                data[0].normal = _textureCoords[baseIndex + 0]!.Value;
+                                data[1].normal = _textureCoords[baseIndex + i + 1]!.Value;
+                                data[2].normal = _textureCoords[baseIndex + i + 2]!.Value;
+
+                                var interpolatedTextureCoord = InterpolateVertex(data, new Vector2Int(x, y));
+
+                                var tx = interpolatedTextureCoord.X * (_diffuseMap.GetLength(0) - 1);
+                                var ty = interpolatedTextureCoord.Y * (_diffuseMap.GetLength(1) - 1);
+
+                                if (tx >= _diffuseMap.GetLength(0) || ty >= _diffuseMap.GetLength(1)
+                                    || tx < 0 || ty < 0)
+                                {
+                                    ;
+                                } 
+                                
+                                surfaceColor = _diffuseMap[
+                                    (int)tx % _diffuseMap.GetLength(0),
+                                    (int)ty % _diffuseMap.GetLength(1)];
+                            }
                             
                             var color = GetVertexColor(
                                 new Color(255,255,255),
-                                new Color(255,200,200),
+                                surfaceColor,
                                 lightPosition,
                                 cameraPosition,
                                 normal,
