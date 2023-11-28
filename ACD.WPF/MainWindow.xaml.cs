@@ -55,65 +55,84 @@ public partial class MainWindow
         var openFileDialog = new OpenFileDialog { Filter = "Obj files (*.obj)|*.obj" };
 
         Model? model = null;
-        
-        if (openFileDialog.ShowDialog() == true)
-        {
-            var fileName = openFileDialog.FileName;
-            model = new ObjParser().Parse(File.ReadAllLines(fileName));
-        }
-        
-        if (model is null)
-        {
-            return;  
-        }
 
+        if (openFileDialog.ShowDialog() == false)
+        {
+            return;
+        }
+        
+        var fileName = openFileDialog.FileName;
+        var folderPath = Directory.GetParent(fileName);
+
+        try
+        {
+            model = new ObjParser().Parse(File.ReadAllLines(fileName), folderPath?.FullName);
+        }
+        catch
+        {
+            MessageBox.Show("Invalid OBJ file format.");
+            return;
+        }
+        
         openFileDialog.Filter = "Image (*.JPG, *.PNG)|*.jpg;*.png";
 
-        if (openFileDialog.ShowDialog() == true)
+        if (openFileDialog.ShowDialog() != true)
         {
-            try
+            return;
+        }
+
+        var colorArray = GetColorArrayFromImagePath(openFileDialog.FileName);
+
+        if (colorArray == null)
+        {
+            MessageBox.Show("Invalid image format.");
+            return;
+        }
+        
+        _modelDrawer = new PhongIlluminationRenderer(model, colorArray);
+        DrawModel();
+    }
+
+    private static ACD.Infrastructure.Color[,]? GetColorArrayFromImagePath(string imagePath)
+    {
+        try
+        {
+            var bitmapDecoder = BitmapDecoder.Create(
+                new Uri(imagePath),
+                BitmapCreateOptions.None,
+                BitmapCacheOption.Default);
+
+            var bitmapFrame = bitmapDecoder.Frames[0];
+
+            var writeableBitmap = new WriteableBitmap(bitmapFrame);
+
+            var width = writeableBitmap.PixelWidth;
+            var height = writeableBitmap.PixelHeight;
+            var stride = (writeableBitmap.Format.BitsPerPixel + 7) / 8 * width;
+            var pixelData = new byte[stride * height];
+
+            writeableBitmap.CopyPixels(pixelData, stride, 0);
+
+            var rgbArray = new ACD.Infrastructure.Color[width, height];
+
+            for (var x = 0; x < width; x++)
             {
-                var fileName = openFileDialog.FileName;
-
-                var bitmapDecoder = BitmapDecoder.Create(
-                    new Uri(fileName), 
-                    BitmapCreateOptions.None,
-                    BitmapCacheOption.Default);
-
-                var bitmapFrame = bitmapDecoder.Frames[0];
-
-                var writeableBitmap = new WriteableBitmap(bitmapFrame);
-
-                var width = writeableBitmap.PixelWidth;
-                var height = writeableBitmap.PixelHeight;
-                var stride = (writeableBitmap.Format.BitsPerPixel + 7) / 8 * width;
-                var pixelData = new byte[stride * height];
-
-                writeableBitmap.CopyPixels(pixelData, stride, 0);
-
-                var rgbArray = new ACD.Infrastructure.Color[width, height];
-
-                for (var x = 0; x < width; x++)
+                for (var y = 0; y < height; y++)
                 {
-                    for (var y = 0; y < height; y++)
-                    {
-                        var index = y * stride + x * 4;
-                        var blue = pixelData[index];
-                        var green = pixelData[index + 1];
-                        var red = pixelData[index + 2];
+                    var index = y * stride + x * 4;
+                    var blue = pixelData[index];
+                    var green = pixelData[index + 1];
+                    var red = pixelData[index + 2];
 
-                        rgbArray[x, y] = new ACD.Infrastructure.Color(red, green, blue);
-                    }
+                    rgbArray[x, y] = new ACD.Infrastructure.Color(red, green, blue);
                 }
-
-                _modelDrawer = new PhongIlluminationRenderer(model, rgbArray);
-                DrawModel();
-            }
-            catch
-            {
-                MessageBox.Show("Invalid image syntax");
             }
 
+            return rgbArray;
+        }
+        catch
+        {
+            return null;
         }
     }
 
