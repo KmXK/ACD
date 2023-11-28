@@ -67,7 +67,7 @@ public partial class MainWindow
             return;  
         }
 
-        openFileDialog.Filter = "JPG files (*.jpg)|*.jpg";
+        openFileDialog.Filter = "Image (*.JPG, *.PNG)|*.jpg;*.png";
 
         if (openFileDialog.ShowDialog() == true)
         {
@@ -75,7 +75,7 @@ public partial class MainWindow
             {
                 var fileName = openFileDialog.FileName;
 
-                var bitmapDecoder = new JpegBitmapDecoder(
+                var bitmapDecoder = BitmapDecoder.Create(
                     new Uri(fileName), 
                     BitmapCreateOptions.None,
                     BitmapCacheOption.Default);
