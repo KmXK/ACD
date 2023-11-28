@@ -66,8 +66,6 @@ public class PhongIlluminationRenderer : IRenderer
                 _vertices[vertexNumber] = v;
                 _normals[vertexNumber] = n;
 
-                if (texture.HasValue) texture = texture.Value with { Z = 0 };
-                
                 _textureCoords[vertexNumber] = texture;
             }
         });
@@ -77,6 +75,7 @@ public class PhongIlluminationRenderer : IRenderer
         Span<Vector3> coords = stackalloc Vector3[2];
         
         Span<(Vector2Int vertex, Vector3 normal)> data = stackalloc (Vector2Int vertex, Vector3 normal)[3];
+        Span<(Vector2Int vertex, double value)> dataValue = stackalloc (Vector2Int vertex, double value)[3];
         
         for (var pi = 0; pi < _model.Polygons.Count; pi++)
         {
@@ -185,7 +184,7 @@ public class PhongIlluminationRenderer : IRenderer
                             data[1].normal = _vertices[baseIndex + i + 1].WorldSpace.ToVector3();
                             data[2].normal = _vertices[baseIndex + i + 2].WorldSpace.ToVector3();
 
-                            var interpolatedVertex = InterpolateVertex(data, new Vector2Int(x, y));
+                            var interpolatedVertex = InterpolateVertex(data, new Vector2(x, y));
 
                             var surfaceColor = new Color(0, 0, 0);
                             
@@ -193,18 +192,26 @@ public class PhongIlluminationRenderer : IRenderer
                                 _textureCoords[baseIndex + i + 1].HasValue &&
                                 _textureCoords[baseIndex + i + 2].HasValue)
                             {
-                                data[0].normal = _textureCoords[baseIndex + 0]!.Value;
-                                data[1].normal = _textureCoords[baseIndex + i + 1]!.Value;
-                                data[2].normal = _textureCoords[baseIndex + i + 2]!.Value;
+                                dataValue[0] = (points[0].ToVector2Int(), 1 / _vertices[baseIndex + 0].ClipSpace.W);
+                                dataValue[1] = (points[i + 1].ToVector2Int(), 1 / _vertices[baseIndex + i + 1].ClipSpace.W);
+                                dataValue[2] = (points[i + 2].ToVector2Int(), 1 / _vertices[baseIndex + i + 2].ClipSpace.W);
+                                
+                                var interpolatedRevZ = InterpolateValue(dataValue, new Vector2Int(x, y));
+                                
+                                data[0].normal = _textureCoords[baseIndex + 0]!.Value / _vertices[baseIndex + 0].ClipSpace.W;
+                                data[1].normal = _textureCoords[baseIndex + i + 1]!.Value / _vertices[baseIndex + i + 1].ClipSpace.W;
+                                data[2].normal = _textureCoords[baseIndex + i + 2]!.Value / _vertices[baseIndex + i + 2].ClipSpace.W;
 
-                                var interpolatedTextureCoord = InterpolateVertex(data, new Vector2Int(x, y));
+                                var interpolatedTextureCoord = InterpolateVertex(data, new Vector2(x, y));
+
+                                interpolatedTextureCoord /= (float)interpolatedRevZ;
 
                                 var tx = interpolatedTextureCoord.X * (_diffuseMap.GetLength(0) - 1);
                                 var ty = (1 - interpolatedTextureCoord.Y) * (_diffuseMap.GetLength(1) - 1);
                                 
                                 surfaceColor = _diffuseMap[
-                                    (int)(tx + _diffuseMap.GetLength(0) * 10) % _diffuseMap.GetLength(0),
-                                    (int)(ty + _diffuseMap.GetLength(1) * 10) % _diffuseMap.GetLength(1)
+                                    ((int)tx + _diffuseMap.GetLength(0) * 10) % _diffuseMap.GetLength(0),
+                                    ((int)ty + _diffuseMap.GetLength(1) * 10) % _diffuseMap.GetLength(1)
                                 ];
                             }
                             
@@ -246,7 +253,7 @@ public class PhongIlluminationRenderer : IRenderer
     
     private static Vector3 InterpolateVertex(
         Span<(Vector2Int vertex, Vector3 anchorVertex)> data,
-        Vector2Int vertex)
+        Vector2 vertex)
     {
         var (v1, v2, v3) = (data[0].vertex.ToVector2(), data[1].vertex.ToVector2(), data[2].vertex.ToVector2());
 
@@ -259,6 +266,25 @@ public class PhongIlluminationRenderer : IRenderer
         var w3 = 1 - w1 - w2;
 
         var (a1, a2, a3) = (data[0].anchorVertex, data[1].anchorVertex, data[2].anchorVertex);
+
+        return (a1 * w1 + a2 * w2 + a3 * w3) / (w1 + w2 + w3);
+    }
+    
+    private static double InterpolateValue(
+        Span<(Vector2Int vertex, double anchorValue)> data,
+        Vector2Int vertex)
+    {
+        var (v1, v2, v3) = (data[0].vertex.ToVector2(), data[1].vertex.ToVector2(), data[2].vertex.ToVector2());
+
+        if ((v2.Y - v3.Y) * (v1.X - v3.X) + (v3.X - v2.X) * (v1.Y - v3.Y) == 0) return data[0].anchorValue;
+
+        var w1 = ((v2.Y - v3.Y) * (vertex.X - v3.X) + (v3.X - v2.X) * (vertex.Y - v3.Y)) /
+                 ((v2.Y - v3.Y) * (v1.X - v3.X) + (v3.X - v2.X) * (v1.Y - v3.Y));
+        var w2 = ((v3.Y - v1.Y) * (vertex.X - v3.X) + (v1.X - v3.X) * (vertex.Y - v3.Y)) /
+                 ((v2.Y - v3.Y) * (v1.X - v3.X) + (v3.X - v2.X) * (v1.Y - v3.Y));
+        var w3 = 1 - w1 - w2;
+
+        var (a1, a2, a3) = (data[0].anchorValue, data[1].anchorValue, data[2].anchorValue);
 
         return (a1 * w1 + a2 * w2 + a3 * w3) / (w1 + w2 + w3);
     }
