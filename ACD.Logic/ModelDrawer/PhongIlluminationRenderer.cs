@@ -185,6 +185,7 @@ public class PhongIlluminationRenderer : IRenderer
                             var interpolatedVertex = InterpolateVertex(data, new Vector2(x, y));
 
                             var surfaceColor = new Color(0, 0, 0);
+                            var specularModifier = 0.8f;
                             
                             if (_textureCoords[baseIndex].HasValue &&
                                 _textureCoords[baseIndex + i + 1].HasValue &&
@@ -207,23 +208,48 @@ public class PhongIlluminationRenderer : IRenderer
 
                                 interpolatedTextureCoord /= (float)interpolatedRevZ;
 
-                                var tx = (int)(interpolatedTextureCoord.X * (diffuseMap.GetLength(0) - 1));
-                                var ty = (int)((1 - interpolatedTextureCoord.Y) * (diffuseMap.GetLength(1) - 1));
+                                surfaceColor = GetColorFromMap(diffuseMap);
 
-                                if (tx < 0)
+                                if (polygon.Material.NormalMap != null)
                                 {
-                                    tx = diffuseMap.GetLength(0) - (-tx % diffuseMap.GetLength(0));
+                                    var normalColor = GetColorFromMap(polygon.Material.NormalMap);
+                                    normal = Vector3.Normalize(
+                                        new Vector3(normalColor.R, normalColor.G, normalColor.B) / 255f * 2f -
+                                        Vector3.One);
                                 }
-                                
-                                if (ty < 0)
+
+                                if (polygon.Material.MirrorMap != null)
                                 {
-                                    ty = diffuseMap.GetLength(1) - (-ty % diffuseMap.GetLength(1));
+                                    var mirrorColor = GetColorFromMap(polygon.Material.MirrorMap);
+                                    specularModifier = mirrorColor.R / 255f;
                                 }
+
+                                Color GetColorFromMap(Color[,] map)
+                                {
+                                    var width = map.GetLength(0);
+                                    var height = map.GetLength(1);
+                                    
+                                    var tx = (int)(interpolatedTextureCoord.X * (width - 1));
+                                    var ty = (int)((1 - interpolatedTextureCoord.Y) * (height - 1));
+
+                                    if (tx < 0)
+                                    {
+                                        tx = width - (-tx % width);
+                                    }
                                 
-                                surfaceColor = diffuseMap[
-                                    tx % diffuseMap.GetLength(0),
-                                    ty % diffuseMap.GetLength(1)
-                                ];
+                                    if (ty < 0)
+                                    {
+                                        ty = height- (-ty % height);
+                                    }
+
+                                    tx %= width;
+                                    ty %= height;
+                                
+                                    return map[
+                                        tx % width,
+                                        ty % height
+                                    ];
+                                }
                             }
                             
                             var color = GetVertexColor(
@@ -232,7 +258,8 @@ public class PhongIlluminationRenderer : IRenderer
                                 lightPosition,
                                 cameraPosition,
                                 normal,
-                                interpolatedVertex);
+                                interpolatedVertex,
+                                specularModifier);
                             
                             bitmap.DrawPixel(x, y, color);
                         }
@@ -306,7 +333,8 @@ public class PhongIlluminationRenderer : IRenderer
         Vector3 lightPosition,
         Vector3 cameraPosition,
         Vector3 normal,
-        Vector3 vertex)
+        Vector3 vertex,
+        float specularModifier)
     {
         var lightDirection = Vector3.Normalize(vertex - lightPosition);
         var cameraDirection = Vector3.Normalize(vertex - cameraPosition);
@@ -315,7 +343,7 @@ public class PhongIlluminationRenderer : IRenderer
         var diffuseColor = GetDiffuseColor(surfaceColor, lightDirection, normal);
         var specularColor = GetSpecularColor(lightColor, lightDirection, cameraDirection, normal);
 
-        return ambientColor * 0.3 + diffuseColor * 0.5 + specularColor * 0.8;
+        return ambientColor * 0.8 + diffuseColor * 0.5 + specularColor * specularModifier;
     }
 
     private static Color GetDiffuseColor(Color surfaceColor, Vector3 lightDirection, Vector3 normal)
