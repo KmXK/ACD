@@ -1,5 +1,4 @@
-﻿using System.Drawing;
-using System.Numerics;
+﻿using System.Numerics;
 using ACD.Infrastructure;
 using ACD.Infrastructure.Vectors;
 using ACD.Logic.Bitmap;
@@ -148,8 +147,17 @@ public class PhongIlluminationRenderer : IRenderer
 
                     if (c < 2) continue;
 
-                    var from = Math.Clamp(coords[0].X, 0, bitmap.Width - 1);
-                    var to = Math.Clamp(coords[1].X, 0, bitmap.Width - 1);
+                    var cminx = (int)Math.Ceiling(Math.Min(coords[0].X, coords[1].X));
+                    var cmaxx = (int)Math.Max(cminx, Math.Max(coords[0].X, coords[1].X));
+                    
+                    if ((coords[0].X < 0 && coords[1].X < 0) ||
+                        (cmaxx >= bitmap.Width && cminx >= bitmap.Width))
+                    {
+                        continue;
+                    }
+
+                    var from = Math.Clamp(cminx, 0, bitmap.Width - 1);
+                    var to = Math.Clamp(cmaxx, 0, bitmap.Width - 1);
 
                     if (from > to)
                     {
@@ -161,7 +169,7 @@ public class PhongIlluminationRenderer : IRenderer
                         ? 0f
                         : (coords[1].Z - coords[0].Z + 0f) / (to - from);
 
-                    for (var x = (int)Math.Ceiling(from); x <= (int)to; x++)
+                    for (var x = from; x <= to; x++)
                     {
                         if (_zBuffer[x, y] > z)
                         {
@@ -201,8 +209,8 @@ public class PhongIlluminationRenderer : IRenderer
                                 } 
                                 
                                 surfaceColor = _diffuseMap[
-                                    (int)tx % _diffuseMap.GetLength(0),
-                                    (int)ty % _diffuseMap.GetLength(1)];
+                                    (int)(tx + _diffuseMap.GetLength(0)) % _diffuseMap.GetLength(0),
+                                    (int)(ty + _diffuseMap.GetLength(1)) % _diffuseMap.GetLength(1)];
                             }
                             
                             var color = GetVertexColor(
