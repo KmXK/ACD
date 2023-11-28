@@ -207,12 +207,22 @@ public class PhongIlluminationRenderer : IRenderer
 
                                 interpolatedTextureCoord /= (float)interpolatedRevZ;
 
-                                var tx = interpolatedTextureCoord.X * (diffuseMap.GetLength(0) - 1);
-                                var ty = (1 - interpolatedTextureCoord.Y) * (diffuseMap.GetLength(1) - 1);
+                                var tx = (int)(interpolatedTextureCoord.X * (diffuseMap.GetLength(0) - 1));
+                                var ty = (int)((1 - interpolatedTextureCoord.Y) * (diffuseMap.GetLength(1) - 1));
+
+                                if (tx < 0)
+                                {
+                                    tx = diffuseMap.GetLength(0) - (-tx % diffuseMap.GetLength(0));
+                                }
+                                
+                                if (ty < 0)
+                                {
+                                    ty = diffuseMap.GetLength(1) - (-ty % diffuseMap.GetLength(1));
+                                }
                                 
                                 surfaceColor = diffuseMap[
-                                    ((int)tx + diffuseMap.GetLength(0) * 1000) % diffuseMap.GetLength(0),
-                                    ((int)ty + diffuseMap.GetLength(1) * 1000) % diffuseMap.GetLength(1)
+                                    tx % diffuseMap.GetLength(0),
+                                    ty % diffuseMap.GetLength(1)
                                 ];
                             }
                             
