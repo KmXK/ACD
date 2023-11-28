@@ -17,6 +17,8 @@ public class ObjParser : IParser
         
         foreach (var tokens in parseData.Select(x => x.Trim().Split(' ').Where(x => x.Length > 0).ToArray()))
         {
+            if (tokens.Length < 1) continue;
+            
             try
             {
                 switch (tokens[0])
@@ -74,9 +76,13 @@ public class ObjParser : IParser
         }
 
         if (ConvertToFloat(tokens[1], out var u) &&
-            ConvertToFloat(tokens[2], out var v) &&
-            ConvertToFloat(tokens[3], out var w))
+            ConvertToFloat(tokens[2], out var v))
         {
+            var w = 0f;
+            
+            if (tokens.Count > 3)
+                ConvertToFloat(tokens[3], out w);
+            
             return new Vector3(u, v, w);
         }
 
