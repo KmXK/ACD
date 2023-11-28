@@ -1,6 +1,7 @@
 ﻿using System.Globalization;
 using System.Numerics;
 using ACD.Infrastructure;
+using ACD.Parser.Mtl;
 
 namespace ACD.Parser;
 
@@ -10,12 +11,16 @@ public class ObjParser(IImagePixelsParser imagePixelsParser)
     private readonly List<Vector3> _vertexTextures = new();
     private readonly List<Vector3> _vertexNormals = new();
     private readonly List<Polygon> _polygons = new();
+
+    private Dictionary<string, MtlMaterial>? _materials;
+    private MtlMaterial? _selectedMaterial;
     
     public Model Parse(IEnumerable<string> parseData, string? folderPath)
     {
         ClearData();
-
+        
         var tokenLines = parseData.Select(x => x.Trim().Split(' ').ToArray());
+        var mtlParser = new MtlParser(imagePixelsParser); 
         
         foreach (var tokens in tokenLines)
         {
@@ -34,6 +39,16 @@ public class ObjParser(IImagePixelsParser imagePixelsParser)
                     break;
                 case "f":
                     _polygons.Add(ParsePolygon(tokens));
+                    break;
+                case "mtllib":
+                    _materials = mtlParser.Parse(tokens[1]);
+                    break;
+                case "usemtl":
+                    if (_materials == null || !_materials.TryGetValue(tokens[1], out _selectedMaterial))
+                    {
+                        throw new InvalidOperationException($"Missed MTL material with name {tokens[0]}.");
+                    }
+
                     break;
             }
         }
@@ -144,7 +159,7 @@ public class ObjParser(IImagePixelsParser imagePixelsParser)
             }
         }
         
-        return new Polygon(vertices);
+        return new Polygon(vertices, _selectedMaterial);
     }
 
     private static bool ConvertToFloat(string value, out float result)

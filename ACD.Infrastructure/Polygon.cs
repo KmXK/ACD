@@ -2,7 +2,7 @@
 
 namespace ACD.Infrastructure;
 
-public record struct Polygon(List<PolygonVertex> Vertices)
+public record struct Polygon(List<PolygonVertex> Vertices, MtlMaterial? Material)
 {
     public readonly Vector3 Normal = Vector3.Normalize(
         Vector3.Cross(

@@ -1,6 +1,4 @@
-﻿using ACD.Infrastructure;
-
-namespace ACD.Parser.Mtl;
+﻿namespace ACD.Infrastructure;
 
 public record MtlMaterial(
     string Name,
