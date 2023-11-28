@@ -200,17 +200,12 @@ public class PhongIlluminationRenderer : IRenderer
                                 var interpolatedTextureCoord = InterpolateVertex(data, new Vector2Int(x, y));
 
                                 var tx = interpolatedTextureCoord.X * (_diffuseMap.GetLength(0) - 1);
-                                var ty = interpolatedTextureCoord.Y * (_diffuseMap.GetLength(1) - 1);
-
-                                if (tx >= _diffuseMap.GetLength(0) || ty >= _diffuseMap.GetLength(1)
-                                    || tx < 0 || ty < 0)
-                                {
-                                    ;
-                                } 
+                                var ty = (1 - interpolatedTextureCoord.Y) * (_diffuseMap.GetLength(1) - 1);
                                 
                                 surfaceColor = _diffuseMap[
-                                    (int)(tx + _diffuseMap.GetLength(0)) % _diffuseMap.GetLength(0),
-                                    (int)(ty + _diffuseMap.GetLength(1)) % _diffuseMap.GetLength(1)];
+                                    (int)(tx + _diffuseMap.GetLength(0) * 10) % _diffuseMap.GetLength(0),
+                                    (int)(ty + _diffuseMap.GetLength(1) * 10) % _diffuseMap.GetLength(1)
+                                ];
                             }
                             
                             var color = GetVertexColor(
