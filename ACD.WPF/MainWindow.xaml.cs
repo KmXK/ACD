@@ -62,15 +62,15 @@ public partial class MainWindow
         }
         
         var fileName = openFileDialog.FileName;
-        var folderPath = Directory.GetParent(fileName);
+        var folderPath = Path.GetDirectoryName(fileName);
 
         try
         {
-            model = new ObjParser().Parse(File.ReadAllLines(fileName), folderPath?.FullName);
+            model = new ObjParser(new ImagePixelParser()).Parse(File.ReadAllLines(fileName), folderPath);
         }
-        catch
+        catch (Exception ex)
         {
-            MessageBox.Show("Invalid OBJ file format.");
+            MessageBox.Show($"Invalid OBJ file format: {ex.Message}");
             return;
         }
         

@@ -41,12 +41,17 @@ public class ObjParser(IImagePixelsParser imagePixelsParser)
                     _polygons.Add(ParsePolygon(tokens));
                     break;
                 case "mtllib":
-                    _materials = mtlParser.Parse(tokens[1]);
+                    if (folderPath == null)
+                    {
+                        throw new InvalidOperationException("Folder path must be specified.");
+                    }
+                    
+                    _materials = mtlParser.Parse(Path.Combine(folderPath, tokens[1]));
                     break;
                 case "usemtl":
                     if (_materials == null || !_materials.TryGetValue(tokens[1], out _selectedMaterial))
                     {
-                        throw new InvalidOperationException($"Missed MTL material with name {tokens[0]}.");
+                        throw new InvalidOperationException($"Missed MTL material with name {tokens[1]}.");
                     }
 
                     break;

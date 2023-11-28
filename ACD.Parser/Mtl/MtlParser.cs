@@ -19,35 +19,47 @@ public class MtlParser(IImagePixelsParser imagePixelsParser)
         
         foreach (var tokens in tokenLines)
         {
+            if (tokens.Length == 0)
+            {
+                continue;
+            }
+            
             switch (tokens[0])
             {
                 case "newmtl":
-                    if (name != null)
-                    {
-                        if (diffuseMap == null)
-                        {
-                            throw new InvalidOperationException("Invalid MTL material: Diffuse Map is required.");
-                        }
-                        
-                        materials.Add(new MtlMaterial(
-                            name,
-                            diffuseMap,
-                            normalMap,
-                            mirrorMap));
-                    }
+                    CreateMaterial();
+                    name = tokens[1];
                     break;
                 case "map_Kd":
-                    diffuseMap = imagePixelsParser.GetImagePixels(Path.Combine(localPath!, tokens[0]));
+                    diffuseMap = imagePixelsParser.GetImagePixels(Path.Combine(localPath!, tokens[1]));
                     break;
                 case "norm":
-                    normalMap = imagePixelsParser.GetImagePixels(Path.Combine(localPath!, tokens[0]));
+                    normalMap = imagePixelsParser.GetImagePixels(Path.Combine(localPath!, tokens[1]));
                     break;
                 case "map_MRAO":
-                    mirrorMap = imagePixelsParser.GetImagePixels(Path.Combine(localPath!, tokens[0]));
+                    mirrorMap = imagePixelsParser.GetImagePixels(Path.Combine(localPath!, tokens[1]));
                     break;
             }
         }
-
+        
+        CreateMaterial();
         return materials.ToDictionary(x => x.Name);
+        
+        void CreateMaterial()
+        {
+            if (name != null)
+            {
+                if (diffuseMap == null)
+                {
+                    throw new InvalidOperationException("Invalid MTL material: Diffuse Map is required.");
+                }
+
+                materials.Add(new MtlMaterial(
+                    name,
+                    diffuseMap,
+                    normalMap,
+                    mirrorMap));
+            }
+        }
     }
 }

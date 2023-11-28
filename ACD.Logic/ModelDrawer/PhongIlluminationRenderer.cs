@@ -188,8 +188,11 @@ public class PhongIlluminationRenderer : IRenderer
                             
                             if (_textureCoords[baseIndex].HasValue &&
                                 _textureCoords[baseIndex + i + 1].HasValue &&
-                                _textureCoords[baseIndex + i + 2].HasValue)
+                                _textureCoords[baseIndex + i + 2].HasValue &&
+                                polygon.Material != null)
                             {
+                                var diffuseMap = polygon.Material.DiffuseMap;
+                                
                                 dataValue[0] = (points[0].ToVector2Int(), 1 / _vertices[baseIndex + 0].ClipSpace.W);
                                 dataValue[1] = (points[i + 1].ToVector2Int(), 1 / _vertices[baseIndex + i + 1].ClipSpace.W);
                                 dataValue[2] = (points[i + 2].ToVector2Int(), 1 / _vertices[baseIndex + i + 2].ClipSpace.W);
@@ -204,12 +207,12 @@ public class PhongIlluminationRenderer : IRenderer
 
                                 interpolatedTextureCoord /= (float)interpolatedRevZ;
 
-                                var tx = interpolatedTextureCoord.X * (_diffuseMap.GetLength(0) - 1);
-                                var ty = (1 - interpolatedTextureCoord.Y) * (_diffuseMap.GetLength(1) - 1);
+                                var tx = interpolatedTextureCoord.X * (diffuseMap.GetLength(0) - 1);
+                                var ty = (1 - interpolatedTextureCoord.Y) * (diffuseMap.GetLength(1) - 1);
                                 
-                                surfaceColor = _diffuseMap[
-                                    ((int)tx + _diffuseMap.GetLength(0) * 10) % _diffuseMap.GetLength(0),
-                                    ((int)ty + _diffuseMap.GetLength(1) * 10) % _diffuseMap.GetLength(1)
+                                surfaceColor = diffuseMap[
+                                    ((int)tx + diffuseMap.GetLength(0) * 1000) % diffuseMap.GetLength(0),
+                                    ((int)ty + diffuseMap.GetLength(1) * 1000) % diffuseMap.GetLength(1)
                                 ];
                             }
                             
