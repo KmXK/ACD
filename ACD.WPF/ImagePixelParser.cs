@@ -24,7 +24,8 @@ public class ImagePixelParser : IImagePixelsParser
 
             var width = writeableBitmap.PixelWidth;
             var height = writeableBitmap.PixelHeight;
-            var stride = (writeableBitmap.Format.BitsPerPixel + 7) / 8 * width;
+            var bytesPerPixel = (writeableBitmap.Format.BitsPerPixel + 7) / 8;
+            var stride = bytesPerPixel * width;
 
             if (_pixelData == null || _pixelData.Length != stride * height)
             {
@@ -39,10 +40,10 @@ public class ImagePixelParser : IImagePixelsParser
             {
                 for (var y = 0; y < height; y++)
                 {
-                    var index = y * stride + x * 4;
+                    var index = y * stride + x * bytesPerPixel;
                     var blue = _pixelData[index];
-                    var green = _pixelData[index + 1];
-                    var red = _pixelData[index + 2];
+                    var green = bytesPerPixel > 1 ? _pixelData[index + 1] : (byte)0;
+                    var red = bytesPerPixel > 2 ? _pixelData[index + 2] : (byte)0;
 
                     rgbArray[x, y] = new Color(red, green, blue);
                 }
@@ -52,6 +53,7 @@ public class ImagePixelParser : IImagePixelsParser
         }
         catch (Exception e)
         {
+            Console.WriteLine(e);
             throw new InvalidOperationException("Invalid image format", e);
         }
     }

@@ -184,8 +184,8 @@ public class PhongIlluminationRenderer : IRenderer
 
                             var interpolatedVertex = InterpolateVertex(data, new Vector2(x, y));
 
-                            var surfaceColor = new Color(0, 0, 0);
-                            var specularModifier = 0.8f;
+                            var surfaceColor = new Color(255, 255, 255);
+                            var specularModifier = 0.4f;
                             
                             if (_textureCoords[baseIndex].HasValue &&
                                 _textureCoords[baseIndex + i + 1].HasValue &&
@@ -213,9 +213,9 @@ public class PhongIlluminationRenderer : IRenderer
                                 if (polygon.Material.NormalMap != null)
                                 {
                                     var normalColor = GetColorFromMap(polygon.Material.NormalMap);
-                                    normal = Vector3.Normalize(
+                                    normal = 
                                         new Vector3(normalColor.R, normalColor.G, normalColor.B) / 255f * 2f -
-                                        Vector3.One);
+                                        Vector3.One;
                                 }
 
                                 if (polygon.Material.MirrorMap != null)
@@ -343,7 +343,7 @@ public class PhongIlluminationRenderer : IRenderer
         var diffuseColor = GetDiffuseColor(surfaceColor, lightDirection, normal);
         var specularColor = GetSpecularColor(lightColor, lightDirection, cameraDirection, normal);
 
-        return ambientColor * 0.8 + diffuseColor * 0.5 + specularColor * specularModifier;
+        return ambientColor * 0.6 + diffuseColor * 0.5 + specularColor * specularModifier;
     }
 
     private static Color GetDiffuseColor(Color surfaceColor, Vector3 lightDirection, Vector3 normal)

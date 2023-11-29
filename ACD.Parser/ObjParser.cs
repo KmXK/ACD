@@ -19,7 +19,7 @@ public class ObjParser(IImagePixelsParser imagePixelsParser)
     {
         ClearData();
         
-        var tokenLines = parseData.Select(x => x.Trim().Split(' ').ToArray());
+        var tokenLines = parseData.Select(x => x.Trim().Split(' ').Where(x => x.Length > 0).ToArray());
         var mtlParser = new MtlParser(imagePixelsParser); 
         
         foreach (var tokens in tokenLines)

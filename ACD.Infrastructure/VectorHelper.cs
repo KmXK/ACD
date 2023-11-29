@@ -24,4 +24,9 @@ public static class VectorHelper
     {
         return new Vector2(v.X, v.Y);
     }
+
+    public static Vector2Int ToVector2Int(this Vector2 v)
+    {
+        return new Vector2Int((int)v.X, (int)v.Y);
+    }
 }
