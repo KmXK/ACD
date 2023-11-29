@@ -12,7 +12,7 @@ public class PhongIlluminationRenderer : IRenderer
     private readonly Model _model;
     private readonly VertexTransform[] _vertices;
     private readonly Vector3[] _normals;
-    private int[,]? _zBuffer;
+    private float[,]? _zBuffer;
     private readonly Vector3?[] _textureCoords;
 
     public PhongIlluminationRenderer(Model model)
@@ -34,7 +34,7 @@ public class PhongIlluminationRenderer : IRenderer
     {
         if (_zBuffer is null || _zBuffer.GetLength(0) != bitmap.Width || _zBuffer.GetLength(1) != bitmap.Height)
         {
-            _zBuffer = new int[bitmap.Width, bitmap.Height];
+            _zBuffer = new float[bitmap.Width, bitmap.Height];
         }
 
         for (var x = 0; x < bitmap.Width; x++)
@@ -68,9 +68,9 @@ public class PhongIlluminationRenderer : IRenderer
             }
         });
 
-        Span<Vector3Int> points = stackalloc Vector3Int[_model.MaxPolygonVertices];
+        Span<Vector3> points = stackalloc Vector3[_model.MaxPolygonVertices];
         Span<Line> lines = stackalloc Line[3];
-        Span<Vector3> coords = stackalloc Vector3[2];
+        Span<Vector3> coords = stackalloc Vector3[3];
         
         Span<(Vector2Int vertex, Vector3 normal)> data = stackalloc (Vector2Int vertex, Vector3 normal)[3];
         Span<(Vector2Int vertex, double value)> dataValue = stackalloc (Vector2Int vertex, double value)[3];
@@ -85,27 +85,26 @@ public class PhongIlluminationRenderer : IRenderer
 
             for (var i = 0; i < polygon.Vertices.Count; i++)
             {
-                points[i] = new Vector3Int(
+                points[i] = new Vector3(
                     (int)_vertices[baseIndex + i].ScreenSpace.X,
                     (int)_vertices[baseIndex + i].ScreenSpace.Y,
-                    (int)(_vertices[baseIndex + i].ScreenSpace.Z * 100_000_000));
+                    (_vertices[baseIndex + i].ClipSpace.Z));
             }
 
             for (var i = 0; i < polygon.Vertices.Count - 2; i++)
             {
-                var maxY = Math.Max(Math.Max(points[0].Y, points[i + 1].Y), points[i + 2].Y);
-                var minY = Math.Min(Math.Min(points[0].Y, points[i + 1].Y), points[i + 2].Y);
+                var maxY = Math.Max(Math.Max((int)points[0].Y, (int)points[i + 1].Y), (int)points[i + 2].Y);
+                var minY = Math.Min(Math.Min((int)points[0].Y, (int)points[i + 1].Y), (int)points[i + 2].Y);
 
                 if ((minY < 0 && maxY < 0) || (minY >= bitmap.Height && maxY >= bitmap.Height))
                 {
                     continue;
                 }
                 
-                var maxX = Math.Max(Math.Max(points[0].X, points[i + 1].X), points[i + 2].X);
-                var minX = Math.Min(Math.Min(points[0].X, points[i + 1].X), points[i + 2].X);
+                var maxX = Math.Max(Math.Max((int)points[0].X, (int)points[i + 1].X), (int)points[i + 2].X);
+                var minX = Math.Min(Math.Min((int)points[0].X, (int)points[i + 1].X), (int)points[i + 2].X);
 
-                if ((minX < 0 && maxX < 0) ||
-                    (minX >= bitmap.Width && maxX >= bitmap.Width))
+                if ((minX < 0 && maxX < 0) || (minX >= bitmap.Width && maxX >= bitmap.Width))
                 {
                     continue;
                 }
@@ -125,56 +124,54 @@ public class PhongIlluminationRenderer : IRenderer
                     {
                         var line = lines[li];
 
-                        if (line.From.Y >= y && line.To.Y < y)
+                        if ((int)line.From.Y == (int)line.To.Y && (int)line.To.Y == y)
                         {
-                            var dy = y - line.From.Y;
-                            var dx = (line.To.X - line.From.X) * 1f * dy / (line.To.Y - line.From.Y);
-                            var dz = (line.To.Z - line.From.Z) * 1f * dy / (line.To.Y - line.From.Y);
-
-                            coords[c++] = new Vector3(line.From.X + dx, y, line.From.Z + dz);
-                        }
-                        else if (line.From.Y == line.To.Y && line.To.Y == y)
-                        {
-                            coords[0] = line.From.ToVector3();
-                            coords[1] = line.To.ToVector3();
+                            coords[0] = line.From;
+                            coords[1] = line.To;
                             c = 2;  
                             break;
+                        }
+                        
+                        if (line.From.Y >= y && line.To.Y <= y)
+                        {
+                            var dy = y - line.From.Y;
+                            var dx = (line.To.X - line.From.X) * dy / (line.To.Y - line.From.Y);
+                            var dz = (line.To.Z - line.From.Z) * dy / (line.To.Y - line.From.Y);
+
+                            coords[c++] = new Vector3(line.From.X + dx, y, line.From.Z + dz);
                         }
                     }
 
                     if (c < 2) continue;
-
-                    var cminx = (int)Math.Ceiling(Math.Min(coords[0].X, coords[1].X));
-                    var cmaxx = (int)Math.Max(cminx, Math.Max(coords[0].X, coords[1].X));
                     
                     if ((coords[0].X < 0 && coords[1].X < 0) ||
-                        (cmaxx >= bitmap.Width && cminx >= bitmap.Width))
+                        (coords[0].X >= bitmap.Width && coords[1].X >= bitmap.Width))
                     {
                         continue;
                     }
-
-                    var from = Math.Clamp(cminx, 0, bitmap.Width - 1);
-                    var to = Math.Clamp(cmaxx, 0, bitmap.Width - 1);
-
-                    if (from > to)
+                    
+                    if (coords[0].X > coords[1].X)
                     {
-                        (from, to) = (to, from);
+                        (coords[0].X, coords[1].X) = (coords[1].X, coords[0].X);
                     }
 
+                    var from = Math.Clamp((int)coords[0].X, 0, bitmap.Width - 1);
+                    var to = Math.Clamp((int)coords[1].X, 0, bitmap.Width - 1);
+
                     var z = coords[0].Z * 1f;
-                    var deltaZ = Math.Abs(from - to) < 0.001
+                    var deltaZ = Math.Abs(from - to) < 0.00000001
                         ? 0f
-                        : (coords[1].Z - coords[0].Z + 0f) / (to - from);
+                        : (coords[1].Z - coords[0].Z) / (coords[1].X - coords[0].X);
 
                     for (var x = from; x <= to; x++)
                     {
                         if (_zBuffer[x, y] > z)
                         {
-                            _zBuffer[x, y] = (int)z;
+                            _zBuffer[x, y] = z;
 
-                            data[0] = (points[0].ToVector2Int(), _normals[baseIndex + 0]);
-                            data[1] = (points[i + 1].ToVector2Int(), _normals[baseIndex + i + 1]);
-                            data[2] = (points[i + 2].ToVector2Int(), _normals[baseIndex + i + 2]);
+                            data[0] = (points[0].ToVector2().ToVector2Int(), _normals[baseIndex + 0]);
+                            data[1] = (points[i + 1].ToVector2().ToVector2Int(), _normals[baseIndex + i + 1]);
+                            data[2] = (points[i + 2].ToVector2().ToVector2Int(), _normals[baseIndex + i + 2]);
 
                             var normal = InterpolateNormal(data, new Vector2Int(x, y));
 
@@ -194,9 +191,9 @@ public class PhongIlluminationRenderer : IRenderer
                             {
                                 var diffuseMap = polygon.Material.DiffuseMap;
                                 
-                                dataValue[0] = (points[0].ToVector2Int(), 1 / _vertices[baseIndex + 0].ClipSpace.W);
-                                dataValue[1] = (points[i + 1].ToVector2Int(), 1 / _vertices[baseIndex + i + 1].ClipSpace.W);
-                                dataValue[2] = (points[i + 2].ToVector2Int(), 1 / _vertices[baseIndex + i + 2].ClipSpace.W);
+                                dataValue[0] = (points[0].ToVector2().ToVector2Int(), 1 / _vertices[baseIndex + 0].ClipSpace.W);
+                                dataValue[1] = (points[i + 1].ToVector2().ToVector2Int(), 1 / _vertices[baseIndex + i + 1].ClipSpace.W);
+                                dataValue[2] = (points[i + 2].ToVector2().ToVector2Int(), 1 / _vertices[baseIndex + i + 2].ClipSpace.W);
                                 
                                 var interpolatedRevZ = InterpolateValue(dataValue, new Vector2Int(x, y));
                                 
@@ -388,10 +385,10 @@ public class PhongIlluminationRenderer : IRenderer
     
     private struct Line
     {
-        public readonly Vector3Int From;
-        public readonly Vector3Int To;
+        public readonly Vector3 From;
+        public readonly Vector3 To;
     
-        public Line(Vector3Int from, Vector3Int to)
+        public Line(Vector3 from, Vector3 to)
         {
             if (from.Y < to.Y)
             {
