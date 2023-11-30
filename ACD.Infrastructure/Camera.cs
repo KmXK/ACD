@@ -14,9 +14,9 @@ public class Camera
 
     private float _screenWidth = 16;
     private float _screenHeight = 9;
-    private float _fov = MathF.PI / 2;
+    private float _fov = MathF.PI / 4;
     private float _zNear = 0.1f;
-    private float _zFar = 1000;
+    private float _zFar = 100;
 
     public Camera()
     {
