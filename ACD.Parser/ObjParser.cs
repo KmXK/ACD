@@ -159,6 +159,10 @@ public class ObjParser(IImagePixelsParser imagePixelsParser)
                 {
                     index--;
                 }
+                else 
+                {
+                    index = collection.Count + index;
+                }
                 
                 return collection[index];
             }
