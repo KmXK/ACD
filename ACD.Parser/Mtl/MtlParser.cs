@@ -1,4 +1,5 @@
-﻿using ACD.Infrastructure;
+﻿using System.Globalization;
+using ACD.Infrastructure;
 
 namespace ACD.Parser.Mtl;
 
@@ -29,6 +30,12 @@ public class MtlParser(IImagePixelsParser imagePixelsParser)
                 case "newmtl":
                     CreateMaterial();
                     name = tokens[1];
+                    break;
+                case "Kd":
+                    diffuseMap = new[,]
+                    {
+                        { ParseColor(tokens) }
+                    };
                     break;
                 case "map_Kd":
                     diffuseMap = imagePixelsParser.GetImagePixels(Path.Combine(localPath!, tokens[1]));
@@ -61,5 +68,18 @@ public class MtlParser(IImagePixelsParser imagePixelsParser)
                     mirrorMap));
             }
         }
+    }
+
+    private static Color ParseColor(IReadOnlyList<string> tokens)
+    {
+        if (tokens.Count != 4 ||
+            !byte.TryParse(tokens[1], out var r) ||
+            !byte.TryParse(tokens[2], out var g) ||
+            !byte.TryParse(tokens[3], out var b))
+        {
+            throw new InvalidOperationException();
+        }
+
+        return new Color(r, g, b);
     }
 }
