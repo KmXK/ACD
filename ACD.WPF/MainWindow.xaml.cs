@@ -67,6 +67,18 @@ public partial class MainWindow
         try
         {
             model = new ObjParser(new ImagePixelParser()).Parse(File.ReadAllLines(fileName), folderPath);
+            
+            _transform.Position = -new Vector3(
+                model.MinX + (model.MaxX - model.MinX) / 2,
+                0,
+                model.MinZ + (model.MaxZ - model.MinZ) / 2);
+
+            _camera.Zoom(-_camera.SphericalPosition.R + 2 * Math.Max(model.MaxX, Math.Max(model.MaxY, model.MaxZ)));
+            
+            if (_isMovingLight)
+            {
+                _lightPosition = _camera.SphericalPosition.ToCartesian();
+            }
         }
         catch (Exception ex)
         {
@@ -246,16 +258,20 @@ public partial class MainWindow
 
     private void MainWindow_OnKeyDown(object sender, KeyEventArgs e)
     {
+        var isShift = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift);
+
+        var dist = isShift ? 100 : 1;
+        
         var dict = new Dictionary<Key, Action>
         {
-            [Key.Left] = () => _camera.MoveTarget(Vector3.UnitX * -1),
-            [Key.Right] = () => _camera.MoveTarget(Vector3.UnitX * 1),
-            [Key.Up] = () => _camera.MoveTarget(Vector3.UnitY * -1),
-            [Key.Down] = () => _camera.MoveTarget(Vector3.UnitY * 1), 
-            [Key.A] = () => _transform.Position += Vector3.UnitX * -1,
-            [Key.D] = () => _transform.Position += Vector3.UnitX * 1,
-            [Key.W] = () => _transform.Position += Vector3.UnitY * -1,
-            [Key.S] = () => _transform.Position += Vector3.UnitY * 1,
+            [Key.Left] = () => _camera.MoveTarget(Vector3.UnitX * -dist),
+            [Key.Right] = () => _camera.MoveTarget(Vector3.UnitX * dist),
+            [Key.Up] = () => _camera.MoveTarget(Vector3.UnitY * -dist),
+            [Key.Down] = () => _camera.MoveTarget(Vector3.UnitY * dist), 
+            [Key.A] = () => _transform.Position += Vector3.UnitX * -dist,
+            [Key.D] = () => _transform.Position += Vector3.UnitX * dist,
+            [Key.W] = () => _transform.Position += Vector3.UnitY * -dist,
+            [Key.S] = () => _transform.Position += Vector3.UnitY * dist,
             [Key.E] = () =>
             {
                 _isMovingLight = !_isMovingLight;

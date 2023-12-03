@@ -11,10 +11,9 @@ public class PhongIlluminationRenderer : IRenderer
 {
     private readonly Model _model;
     private readonly VertexTransform[] _vertices;
-    private readonly Vector3[] _normals;
+    private readonly Vector3?[] _normals;
     private int[,]? _zBuffer;
     private readonly Vector3?[] _textureCoords;
-    private readonly int[] _normalsCount;
 
     public PhongIlluminationRenderer(Model model)
     {
@@ -23,8 +22,7 @@ public class PhongIlluminationRenderer : IRenderer
         var maxVerticesCount = model.Polygons.Count * model.MaxPolygonVertices;
         
         _vertices = new VertexTransform[maxVerticesCount];
-        _normalsCount = new int[maxVerticesCount];
-        _normals = new Vector3[maxVerticesCount];
+        _normals = new Vector3?[maxVerticesCount];
         _textureCoords = new Vector3?[maxVerticesCount];
     }
     
@@ -56,29 +54,14 @@ public class PhongIlluminationRenderer : IRenderer
                 var (vertex, texture, normal) = polygon.Vertices[vi];
                 var v = vertexTransformer.Transform(vertex);
 
-                if (normal is null)
-                {
-                    normal = polygon.Normal;
-                    _normalsCount[vertexNumber]++;
-
-                    // throw new Exception($"Normal is null for vertex ({vertex.X}, {vertex.Y}, {vertex.Z})");
-                }           
-                
-                var n = Vector3.Normalize(vertexTransformer.ToWorldSpace(normal.Value.ToVector4()).ToVector3());
+                if (normal.HasValue)
+                    normal = Vector3.Normalize(vertexTransformer.ToWorldSpace(normal.Value.ToVector4()).ToVector3());
 
                 _vertices[vertexNumber] = v;
-                _normals[vertexNumber] += normal.Value;
+                _normals[vertexNumber] = normal;
 
                 _textureCoords[vertexNumber] = texture;
             }
-        });
-
-        Parallel.ForEach(_normals, (normal, _, i) =>
-        {
-            if (_normalsCount[i] == 0) return;
-            
-            normal /= _normalsCount[i];
-            
         });
 
         Span<Vector3Int> points = stackalloc Vector3Int[_model.MaxPolygonVertices];
@@ -101,7 +84,7 @@ public class PhongIlluminationRenderer : IRenderer
                 points[i] = new Vector3Int(
                     (int)_vertices[baseIndex + i].ScreenSpace.X,
                     (int)_vertices[baseIndex + i].ScreenSpace.Y,
-                    (int)(_vertices[baseIndex + i].ScreenSpace.Z * 100_000_000));
+                    (int)(_vertices[baseIndex + i].ClipSpace.Z * 10000));
             }
 
             for (var i = 0; i < polygon.Vertices.Count - 2; i++)
@@ -184,10 +167,12 @@ public class PhongIlluminationRenderer : IRenderer
                         if (_zBuffer[x, y] > z)
                         {
                             _zBuffer[x, y] = (int)z;
+                            
+                            var polygonNormal = Vector3.Normalize(vertexTransformer.ToWorldSpace(polygon.Normal.ToVector4()).ToVector3());
 
-                            data[0] = (points[0].ToVector2Int(), _normals[baseIndex + 0]);
-                            data[1] = (points[i + 1].ToVector2Int(), _normals[baseIndex + i + 1]);
-                            data[2] = (points[i + 2].ToVector2Int(), _normals[baseIndex + i + 2]);
+                            data[0] = (points[0].ToVector2Int(), _normals[baseIndex + 0] ?? polygonNormal);
+                            data[1] = (points[i + 1].ToVector2Int(), _normals[baseIndex + i + 1] ?? polygonNormal);
+                            data[2] = (points[i + 2].ToVector2Int(), _normals[baseIndex + i + 2] ?? polygonNormal);
 
                             var normal = InterpolateNormal(data, new Vector2Int(x, y));
 
@@ -266,33 +251,37 @@ public class PhongIlluminationRenderer : IRenderer
                             }
                             
                             // Calculate shadow
-
-                            /*data[0].normal = _vertices[baseIndex + 0].WorldSpace.ToVector3();
-                            data[1].normal = _vertices[baseIndex + i + 1].WorldSpace.ToVector3();
-                            data[2].normal = _vertices[baseIndex + i + 2].WorldSpace.ToVector3();
-
-                            var vectorWorldSpace = InterpolateVertex(data, new Vector2(x, y));
-                            
-                            var distance = GetTriangleIntersection(
-                                vectorWorldSpace,
-                                lightPosition - vectorWorldSpace,
-                                _vertices[baseIndex + 0].WorldSpace.ToVector3(),
-                                _vertices[baseIndex + i + 1].WorldSpace.ToVector3(),
-                                _vertices[baseIndex + i + 2].WorldSpace.ToVector3()
-                                );
-
                             var lightColor = new Color(255, 255, 255);
-                            
-                            if (distance < (lightPosition - vectorWorldSpace).Length())
+
+                            for (var index = 0; index < _model.Polygons.Count; index++)
                             {
-                                lightColor = new Color(0, 0, 0);
-                            }*/
-                            
-                            //
-                            
+                                if (index == pi) continue;
+
+                                var bi = index * _model.MaxPolygonVertices;
+
+                                for (var vi = 0; vi < _model.Polygons[index].Vertices.Count - 2; vi++)
+                                {
+                                    var distance = GetTriangleIntersection(
+                                        lightPosition,
+                                        interpolatedVertex - lightPosition,
+                                        _vertices[bi + 0].WorldSpace.ToVector3(),
+                                        _vertices[bi + vi + 1].WorldSpace.ToVector3(),
+                                        _vertices[bi + vi + 2].WorldSpace.ToVector3()
+                                    );
+
+                                    if (distance > 1e-2 && distance < 0.9)
+                                    {
+                                        lightColor = new Color(0, 0, 0);
+                                        break;
+                                    }
+                                }
+
+                                if (lightColor.R == 0) break;
+                            }
+
                             var color = GetVertexColor(
-                                new Color(255, 255, 255),
-                                // lightColor,
+                                // new Color(255, 255, 255),
+                                lightColor,
                                 surfaceColor,
                                 lightPosition,
                                 cameraPosition,
@@ -409,6 +398,8 @@ public class PhongIlluminationRenderer : IRenderer
         Vector3 vertex,
         float specularModifier)
     {
+        if (lightColor is { R: 0, B: 0, G: 0 }) return surfaceColor * 0.6;
+        
         var lightDirection = Vector3.Normalize(vertex - lightPosition);
         var cameraDirection = Vector3.Normalize(vertex - cameraPosition);
         
