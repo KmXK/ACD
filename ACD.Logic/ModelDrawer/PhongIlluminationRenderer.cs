@@ -14,6 +14,7 @@ public class PhongIlluminationRenderer : IRenderer
     private readonly Vector3[] _normals;
     private int[,]? _zBuffer;
     private readonly Vector3?[] _textureCoords;
+    private readonly int[] _normalsCount;
 
     public PhongIlluminationRenderer(Model model)
     {
@@ -22,6 +23,7 @@ public class PhongIlluminationRenderer : IRenderer
         var maxVerticesCount = model.Polygons.Count * model.MaxPolygonVertices;
         
         _vertices = new VertexTransform[maxVerticesCount];
+        _normalsCount = new int[maxVerticesCount];
         _normals = new Vector3[maxVerticesCount];
         _textureCoords = new Vector3?[maxVerticesCount];
     }
@@ -56,16 +58,27 @@ public class PhongIlluminationRenderer : IRenderer
 
                 if (normal is null)
                 {
-                    throw new Exception($"Normal is null for vertex ({vertex.X}, {vertex.Y}, {vertex.Z})");
-                }
+                    normal = polygon.Normal;
+                    _normalsCount[vertexNumber]++;
+
+                    // throw new Exception($"Normal is null for vertex ({vertex.X}, {vertex.Y}, {vertex.Z})");
+                }           
                 
                 var n = Vector3.Normalize(vertexTransformer.ToWorldSpace(normal.Value.ToVector4()).ToVector3());
 
                 _vertices[vertexNumber] = v;
-                _normals[vertexNumber] = n;
+                _normals[vertexNumber] += normal.Value;
 
                 _textureCoords[vertexNumber] = texture;
             }
+        });
+
+        Parallel.ForEach(_normals, (normal, _, i) =>
+        {
+            if (_normalsCount[i] == 0) return;
+            
+            normal /= _normalsCount[i];
+            
         });
 
         Span<Vector3Int> points = stackalloc Vector3Int[_model.MaxPolygonVertices];
@@ -252,8 +265,34 @@ public class PhongIlluminationRenderer : IRenderer
                                 }
                             }
                             
+                            // Calculate shadow
+
+                            /*data[0].normal = _vertices[baseIndex + 0].WorldSpace.ToVector3();
+                            data[1].normal = _vertices[baseIndex + i + 1].WorldSpace.ToVector3();
+                            data[2].normal = _vertices[baseIndex + i + 2].WorldSpace.ToVector3();
+
+                            var vectorWorldSpace = InterpolateVertex(data, new Vector2(x, y));
+                            
+                            var distance = GetTriangleIntersection(
+                                vectorWorldSpace,
+                                lightPosition - vectorWorldSpace,
+                                _vertices[baseIndex + 0].WorldSpace.ToVector3(),
+                                _vertices[baseIndex + i + 1].WorldSpace.ToVector3(),
+                                _vertices[baseIndex + i + 2].WorldSpace.ToVector3()
+                                );
+
+                            var lightColor = new Color(255, 255, 255);
+                            
+                            if (distance < (lightPosition - vectorWorldSpace).Length())
+                            {
+                                lightColor = new Color(0, 0, 0);
+                            }*/
+                            
+                            //
+                            
                             var color = GetVertexColor(
-                                new Color(255,255,255),
+                                new Color(255, 255, 255),
+                                // lightColor,
                                 surfaceColor,
                                 lightPosition,
                                 cameraPosition,
@@ -269,6 +308,40 @@ public class PhongIlluminationRenderer : IRenderer
                 }
             }
         }
+    }
+
+    private static float GetTriangleIntersection(
+        Vector3 rayOrigin,
+        Vector3 rayDirection,
+        Vector3 v0, Vector3 v1, Vector3 v2)
+    {
+        var e1 = v1 - v0;
+        var e2 = v2 - v0;
+
+        var pvec = Vector3.Cross(rayDirection, e2);
+        var det = Vector3.Dot(e1, pvec);
+
+        if (det < 1e-8 && det > -1e-8)
+        {
+            return 0;
+        }
+
+        var inv_det = 1 / det;
+        var tvec = rayOrigin - v0;
+        var u = Vector3.Dot(tvec, pvec) * inv_det;
+        if (u < 0 || u > 1)
+        {
+            return 0;
+        }
+
+        var qvec = Vector3.Cross(tvec, e1);
+        var v = Vector3.Dot(rayDirection, qvec) * inv_det;
+        if (v < 0 || u + v > 1)
+        {
+            return 0;
+        }
+
+        return Vector3.Dot(e2, qvec) * inv_det;
     }
 
     private static Vector3 InterpolateNormal(
