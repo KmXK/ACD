@@ -261,18 +261,19 @@ public class PhongIlluminationRenderer : IRenderer
 
                                 for (var vi = 0; vi < _model.Polygons[index].Vertices.Count - 2; vi++)
                                 {
-                                    var distance = GetTriangleIntersection(
-                                        lightPosition,
-                                        interpolatedVertex - lightPosition,
-                                        _vertices[bi + 0].WorldSpace.ToVector3(),
-                                        _vertices[bi + vi + 1].WorldSpace.ToVector3(),
-                                        _vertices[bi + vi + 2].WorldSpace.ToVector3()
-                                    );
-
-                                    if (distance > 1e-2 && distance < 0.9)
+                                    if (GetTriangleIntersection(
+                                            lightPosition,
+                                            Vector3.Normalize(interpolatedVertex - lightPosition),
+                                            _vertices[bi + 0].WorldSpace.ToVector3(),
+                                            _vertices[bi + vi + 1].WorldSpace.ToVector3(),
+                                            _vertices[bi + vi + 2].WorldSpace.ToVector3(),
+                                            out var distance))
                                     {
-                                        lightColor = new Color(0, 0, 0);
-                                        break;
+                                        if (distance < (interpolatedVertex - lightPosition).Length())
+                                        {
+                                            lightColor = new Color(0, 0, 0);
+                                            break;
+                                        }
                                     }
                                 }
 
@@ -299,38 +300,43 @@ public class PhongIlluminationRenderer : IRenderer
         }
     }
 
-    private static float GetTriangleIntersection(
+    private static bool GetTriangleIntersection(
         Vector3 rayOrigin,
         Vector3 rayDirection,
-        Vector3 v0, Vector3 v1, Vector3 v2)
+        Vector3 v0, Vector3 v1, Vector3 v2,
+        out float distance)
     {
+        distance = 0;
+        
         var e1 = v1 - v0;
         var e2 = v2 - v0;
 
-        var pvec = Vector3.Cross(rayDirection, e2);
-        var det = Vector3.Dot(e1, pvec);
+        var ray_cross_e2 = Vector3.Cross(rayDirection, e2);
+        var det = Vector3.Dot(e1, ray_cross_e2);
 
         if (det < 1e-8 && det > -1e-8)
         {
-            return 0;
+            return false;
         }
 
         var inv_det = 1 / det;
-        var tvec = rayOrigin - v0;
-        var u = Vector3.Dot(tvec, pvec) * inv_det;
+        var s = rayOrigin - v0;
+        var u = Vector3.Dot(s, ray_cross_e2) * inv_det;
         if (u < 0 || u > 1)
         {
-            return 0;
+            return false;
         }
 
-        var qvec = Vector3.Cross(tvec, e1);
-        var v = Vector3.Dot(rayDirection, qvec) * inv_det;
+        var s_cross_e1 = Vector3.Cross(s, e1);
+        var v = Vector3.Dot(rayDirection, s_cross_e1) * inv_det;
         if (v < 0 || u + v > 1)
         {
-            return 0;
+            return false;
         }
 
-        return Vector3.Dot(e2, qvec) * inv_det;
+        distance = Vector3.Dot(e2, s_cross_e1) * inv_det;
+
+        return distance > 1e-8;
     }
 
     private static Vector3 InterpolateNormal(
