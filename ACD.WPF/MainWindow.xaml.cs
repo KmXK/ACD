@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net.WebSockets;
 using System.Numerics;
+using System.Timers;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -26,7 +27,7 @@ public partial class MainWindow
 
     private readonly ModelTransform _transform = new();
     private readonly Camera _camera = new();
-    private Vector3 _lightPosition;
+    private VectorSpherical _lightPosition;
 
     private Point? _clickPosition = null;
 
@@ -35,14 +36,29 @@ public partial class MainWindow
     private int _selectedDrawer = 0;
 
     private bool _isMovingLight = true;
-    
+    private readonly Timer _timer;
+
     public MainWindow()
     {
         InitializeComponent();
 
         DataContext = this;
 
-        _lightPosition = _camera.SphericalPosition.ToCartesian();
+        _lightPosition = _camera.SphericalPosition;
+
+        _timer = new Timer(TimeSpan.FromMilliseconds(1000));
+
+        _timer.Elapsed += (_, _) =>
+        {
+            _lightPosition = new VectorSpherical(
+                20,
+                _lightPosition.AzimuthAngle + (float)Math.PI / 50,
+                _lightPosition.ElevationAngle);
+
+            Console.WriteLine(_lightPosition.AzimuthAngle);
+
+            Application.Current.Dispatcher.Invoke(() => DrawModel());
+        };
     }
 
     private void MenuItem_Exit_OnClicked(object sender, RoutedEventArgs e)
@@ -75,10 +91,10 @@ public partial class MainWindow
 
             _camera.Zoom(-_camera.SphericalPosition.R + 2 * Math.Max(model.MaxX, Math.Max(model.MaxY, model.MaxZ)));
             
-            if (_isMovingLight)
-            {
-                _lightPosition = _camera.SphericalPosition.ToCartesian();
-            }
+            // if (_isMovingLight)
+            // {
+            //     _lightPosition = _camera.SphericalPosition;
+            // }
         }
         catch (Exception ex)
         {
@@ -162,10 +178,10 @@ public partial class MainWindow
 
                 _camera.MoveOnSphere(new Vector2((float)delta.X / 100, (float)delta.Y / 100));
 
-                if (_isMovingLight)
-                {
-                    _lightPosition = _camera.SphericalPosition.ToCartesian();
-                }
+                // if (_isMovingLight)
+                // {
+                //     _lightPosition = _camera.SphericalPosition.ToCartesian();
+                // }
 
                 DrawModel();
             }
@@ -188,18 +204,23 @@ public partial class MainWindow
         // FillBitmap(Color.FromArgb(0, 0, 0, 0));
 
         var vertexTransformer = new VertexScreenTransformer(_camera, _transform);
+
         
+        Console.WriteLine("DRAW");
         _bitmap.Lock();
         
         var bitmapAdapter = new WritableBitmapAdapter(_bitmap);
 
-        _modelDrawer.DrawModel(bitmapAdapter, vertexTransformer, _lightPosition, _camera.SphericalPosition.ToCartesian());
+        Console.WriteLine(_lightPosition.ToCartesian());
+
+        _modelDrawer.DrawModel(bitmapAdapter, vertexTransformer, _lightPosition.ToCartesian(), _camera.SphericalPosition.ToCartesian());
 
         bitmapAdapter.DrawBitmap();
         
         // DrawAxes(vertexTransformer, bitmapAdapter);
         
         _bitmap.Unlock();
+        Console.WriteLine("DRAWN");
     }
 
     // private void FillBitmap(Color fillColor)
@@ -252,10 +273,10 @@ public partial class MainWindow
         
         _camera.Zoom(delta);
         
-        if (_isMovingLight)
-        {
-            _lightPosition = _camera.SphericalPosition.ToCartesian();
-        }
+        // if (_isMovingLight)
+        // {
+        //     _lightPosition = _camera.SphericalPosition.ToCartesian();
+        // }
         
         DrawModel();
     }
@@ -278,9 +299,24 @@ public partial class MainWindow
             [Key.S] = () => _transform.Position += Vector3.UnitY * dist,
             [Key.E] = () =>
             {
-                _isMovingLight = !_isMovingLight;
-                if (_isMovingLight) _lightPosition = _camera.SphericalPosition.ToCartesian();
+                if (_timer.Enabled) _timer.Stop();
+                else
+                {
+                    // _lightPosition = _camera.SphericalPosition
+                    
+                    _lightPosition = new VectorSpherical(
+                        20,
+                        _camera.SphericalPosition.AzimuthAngle,
+                        _camera.SphericalPosition.ElevationAngle);
+                    
+                    _timer.Start();
+                }
             }
+            // [Key.E] = () =>
+            // {
+            //     _isMovingLight = !_isMovingLight;
+            //     if (_isMovingLight) _lightPosition = _camera.SphericalPosition.ToCartesian();
+            // }
         };
         
         // if (e.Key == Key.D)

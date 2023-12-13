@@ -231,14 +231,25 @@ public class PhongIlluminationRenderer : IRenderer
         }
 
         var normal = InterpolateNormal(data, new Vector2Int(x, y));
-
+        
         for (var i = 0; i < 3; i++)
         {
-            data[i].normal = _vertices[vertexGlobalIndices[i]].WorldSpace.ToVector3();
+            dataValue[i].vertex = screenCoords[i];
+            dataValue[i].value = 1 / _vertices[vertexGlobalIndices[i]].ClipSpace.W;
+        }
+
+        var interpolatedRevZ = InterpolateValue(dataValue, new Vector2Int(x, y));
+        
+        for (var i = 0; i < 3; i++)
+        {
+            data[i].normal = _vertices[vertexGlobalIndices[i]].WorldSpace.ToVector3() / 
+                             _vertices[vertexGlobalIndices[i]].ClipSpace.W;
         }
 
         var interpolatedVertex = InterpolateVertex(data, new Vector2(x, y));
 
+        interpolatedVertex /= interpolatedRevZ;
+        
         var surfaceColor = new Color(255, 255, 255);
         var specularModifier = 0.4f;
 
@@ -248,14 +259,6 @@ public class PhongIlluminationRenderer : IRenderer
             polygon.Material != null)
         {
             var diffuseMap = polygon.Material.DiffuseMap;
-
-            for (var i = 0; i < 3; i++)
-            {
-                dataValue[i].vertex = screenCoords[i];
-                dataValue[i].value = 1 / _vertices[vertexGlobalIndices[i]].ClipSpace.W;
-            }
-
-            var interpolatedRevZ = InterpolateValue(dataValue, new Vector2Int(x, y));
 
             for (var i = 0; i < 3; i++)
             {
