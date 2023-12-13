@@ -81,7 +81,7 @@ public class PhongIlluminationRenderer : IRenderer
             verticesScreenCoords[i] = new Vector3Int(
                 (int)_vertices[vertexIndex].ScreenSpace.X,
                 (int)_vertices[vertexIndex].ScreenSpace.Y,
-                (int)(_vertices[vertexIndex].ClipSpace.Z * 1000000));
+                (int)(_vertices[vertexIndex].ClipSpace.Z * 100000));
         }
         
         foreach (var (i1, i2, i3) in polygon)
@@ -141,7 +141,7 @@ public class PhongIlluminationRenderer : IRenderer
         int y, 
         out Vector3 from, out Vector3 to)
     {
-        from = to = Vector3.Zero;
+        from = to = -Vector3.One;
 
         var findingMin = true;
         
@@ -151,9 +151,9 @@ public class PhongIlluminationRenderer : IRenderer
             
             for (var i = 0; i < 3; i++)
             {
-                var z = lines[i].X * (-y + screenCoords[i].Y) + lines[i].Y * (x - screenCoords[i].X);
+                var z = lines[i].X * (y - screenCoords[i].Y) - lines[i].Y * (x - screenCoords[i].X);
 
-                if (z < 0) result = false;
+                if (z > 0) result = false;
             }
             
             if (result)
@@ -171,7 +171,7 @@ public class PhongIlluminationRenderer : IRenderer
             }
         }
         
-        if (from.X >= to.X)
+        if (from.X < 0 || to.X < 0)
             return false;
         
         Span<(Vector2Int vertex, double value)> dataValue = stackalloc (Vector2Int vertex, double value)[3];
@@ -180,9 +180,7 @@ public class PhongIlluminationRenderer : IRenderer
         {
             dataValue[i].vertex = screenCoords[i].ToVector2Int();
             dataValue[i].value = screenCoords[i].Z;
-        }
-
-       
+        }       
         
         from.Z = (float)InterpolateValue(dataValue, from.ToVector2Int());
         to.Z = (float)InterpolateValue(dataValue, to.ToVector2Int());
