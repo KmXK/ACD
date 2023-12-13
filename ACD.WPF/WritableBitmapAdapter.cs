@@ -8,7 +8,7 @@ namespace ACD.WPF;
 public sealed class WritableBitmapAdapter : IBitmap
 {
     private static Color[,]? _map;
-    private static int[,]? _mapZ;
+    private static float[,]? _mapZ;
     private readonly WriteableBitmap _bitmap;
 
     public WritableBitmapAdapter(WriteableBitmap bitmap)
@@ -20,7 +20,7 @@ public sealed class WritableBitmapAdapter : IBitmap
         if (_map == null || _map.GetLength(0) != Width || _map.GetLength(1) != Height)
         {
             _map = new Color[Width, Height];
-            _mapZ = new int[Width, Height];
+            _mapZ = new float[Width, Height];
         }
 
         var fillColor = new Color(0, 0, 0, 0);
@@ -39,7 +39,7 @@ public sealed class WritableBitmapAdapter : IBitmap
 
     public int Height { get; }
 
-    public void DrawPixel(int x, int y, Color color, int z = 0)
+    public void DrawPixel(int x, int y, Color color, float z = 0)
     {
         if (_mapZ![x, y] > z)
         {

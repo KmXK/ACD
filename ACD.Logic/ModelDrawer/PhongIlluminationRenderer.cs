@@ -13,7 +13,7 @@ public class PhongIlluminationRenderer : IRenderer
     private readonly Model _model;
     private readonly VertexTransform[] _vertices;
     private readonly Vector3?[] _normals;
-    private int[,]? _zBuffer;
+    private float[,]? _zBuffer;
     private readonly Vector3?[] _textureCoords;
     
     private readonly Dictionary<Polygon, int> _polygonIndices;
@@ -66,22 +66,25 @@ public class PhongIlluminationRenderer : IRenderer
 
     private void DrawPolygon(Polygon polygon)
     {
-        Span<Vector3Int> screenCoords = stackalloc Vector3Int[3];
+        Span<Vector2Int> screenCoords = stackalloc Vector2Int[3];
+        Span<float> screenZ = stackalloc float[3];
         Span<int> vertexLocalIndices = stackalloc int[3];
         Span<int> vertexGlobalIndices = stackalloc int[3];
 
         Span<Vector2> lines = stackalloc Vector2[3];
         
-        Span<Vector3Int> verticesScreenCoords = stackalloc Vector3Int[_model.MaxPolygonVertices];
+        Span<Vector2Int> verticesScreenCoords = stackalloc Vector2Int[_model.MaxPolygonVertices];
+        Span<float> verticesZ = stackalloc float[_model.MaxPolygonVertices];
         
         for (var i = 0; i < polygon.Vertices.Count; i++)
         {
             var vertexIndex = GetVertexIndex(polygon, i);
 
-            verticesScreenCoords[i] = new Vector3Int(
+            verticesScreenCoords[i] = new Vector2Int(
                 (int)_vertices[vertexIndex].ScreenSpace.X,
-                (int)_vertices[vertexIndex].ScreenSpace.Y,
-                (int)(_vertices[vertexIndex].ClipSpace.Z * 100000));
+                (int)_vertices[vertexIndex].ScreenSpace.Y);
+            
+            verticesZ[i] = _vertices[vertexIndex].ScreenSpace.Z;
         }
         
         foreach (var (i1, i2, i3) in polygon)
@@ -92,6 +95,7 @@ public class PhongIlluminationRenderer : IRenderer
 
             for (var i = 0; i < 3; i++)
             {
+                screenZ[i] = verticesZ[vertexLocalIndices[i]];
                 screenCoords[i] = verticesScreenCoords[vertexLocalIndices[i]];
                 vertexGlobalIndices[i] = GetVertexIndex(polygon, vertexLocalIndices[i]);
             }
@@ -104,16 +108,23 @@ public class PhongIlluminationRenderer : IRenderer
             maxY = Math.Clamp(maxY, 0, _bitmap.Height - 1);
             minY = Math.Clamp(minY, 0, _bitmap.Height - 1);
 
-            lines[0] = screenCoords[1].ToVector2Int().ToVector2() - screenCoords[0].ToVector2Int().ToVector2();
-            lines[1] = screenCoords[2].ToVector2Int().ToVector2() - screenCoords[1].ToVector2Int().ToVector2();
-            lines[2] = screenCoords[0].ToVector2Int().ToVector2() - screenCoords[2].ToVector2Int().ToVector2();
+            lines[0] = screenCoords[1].ToVector2() - screenCoords[0].ToVector2();
+            lines[1] = screenCoords[2].ToVector2() - screenCoords[1].ToVector2();
+            lines[2] = screenCoords[0].ToVector2() - screenCoords[2].ToVector2();
 
             var minX = Math.Min(screenCoords[0].X, Math.Min(screenCoords[1].X, screenCoords[2].X));
             var maxX = Math.Max(screenCoords[0].X, Math.Max(screenCoords[1].X, screenCoords[2].X));
 
             for (var y = maxY; y >= minY; y--)
             {
-                if (GetHorizontalLineRasterisationRange(lines, screenCoords, minX, maxX, y, out var from, out var to) == false)
+                if (GetHorizontalLineRasterisationRange(
+                        lines,
+                        screenCoords,
+                        screenZ,
+                        minX,
+                        maxX,
+                        y,
+                        out var from, out var to) == false)
                 {
                     continue;
                 }
@@ -135,7 +146,8 @@ public class PhongIlluminationRenderer : IRenderer
 
     private bool GetHorizontalLineRasterisationRange(
         Span<Vector2> lines,
-        Span<Vector3Int> screenCoords,
+        Span<Vector2Int> screenCoords,
+        Span<float> screenZ,
         int minX,
         int maxX, 
         int y, 
@@ -166,24 +178,26 @@ public class PhongIlluminationRenderer : IRenderer
             }
             else if (findingMin == false)
             {
-                to = new Vector3(x - 1, y, 0);
                 break;
             }
+            
+            
+            to = new Vector3(x, y, 0);
         }
         
         if (from.X < 0 || to.X < 0)
             return false;
         
-        Span<(Vector2Int vertex, double value)> dataValue = stackalloc (Vector2Int vertex, double value)[3];
+        Span<(Vector2Int vertex, float value)> dataValue = stackalloc (Vector2Int vertex, float value)[3];
         
         for (var i = 0; i < 3; i++)
         {
-            dataValue[i].vertex = screenCoords[i].ToVector2Int();
-            dataValue[i].value = screenCoords[i].Z;
+            dataValue[i].vertex = screenCoords[i];
+            dataValue[i].value = screenZ[i];
         }       
         
-        from.Z = (float)InterpolateValue(dataValue, from.ToVector2Int());
-        to.Z = (float)InterpolateValue(dataValue, to.ToVector2Int());
+        from.Z = InterpolateValue(dataValue, from.ToVector2Int());
+        to.Z = InterpolateValue(dataValue, to.ToVector2Int());
 
         return true;
     }
@@ -191,7 +205,7 @@ public class PhongIlluminationRenderer : IRenderer
     private void DrawPixel(
         Polygon polygon, 
         int x, int y, float z, 
-        Span<Vector3Int> screenCoords, 
+        Span<Vector2Int> screenCoords,
         Span<int> vertexGlobalIndices)
     {
         if (_zBuffer![x, y] < z)
@@ -200,16 +214,16 @@ public class PhongIlluminationRenderer : IRenderer
         }
         
         Span<(Vector2Int vertex, Vector3 normal)> data = stackalloc (Vector2Int vertex, Vector3 normal)[3];
-        Span<(Vector2Int vertex, double value)> dataValue = stackalloc (Vector2Int vertex, double value)[3];
+        Span<(Vector2Int vertex, float value)> dataValue = stackalloc (Vector2Int vertex, float value)[3];
 
-        _zBuffer[x, y] = (int)z;
+        _zBuffer[x, y] = z;
 
         var polygonNormal =
             Vector3.Normalize(_vertexTransformer.ToWorldSpace(polygon.Normal.ToVector4()).ToVector3());
 
         for (var i = 0; i < 3; i++)
         {
-            data[i].vertex = screenCoords[i].ToVector2Int();
+            data[i].vertex = screenCoords[i];
             data[i].normal = _normals[vertexGlobalIndices[i]] ?? polygonNormal;
         }
 
@@ -234,7 +248,7 @@ public class PhongIlluminationRenderer : IRenderer
 
             for (var i = 0; i < 3; i++)
             {
-                dataValue[i].vertex = screenCoords[i].ToVector2Int();
+                dataValue[i].vertex = screenCoords[i];
                 dataValue[i].value = 1 / _vertices[vertexGlobalIndices[i]].ClipSpace.W;
             }
 
@@ -296,31 +310,31 @@ public class PhongIlluminationRenderer : IRenderer
         // Calculate shadow
         var lightColor = new Color(255, 255, 255);
 
-        // Parallel.ForEach(_model.Polygons, (checkPolygon, state, _) =>
-        // {
-        //     if (checkPolygon == polygon) return;
-        //
-        //     foreach (var checkTriangleVertices in checkPolygon)
-        //     {
-        //         if (GetTriangleIntersection(
-        //                 _lightPosition,
-        //                 Vector3.Normalize(interpolatedVertex - _lightPosition),
-        //                 _vertices[GetVertexIndex(checkPolygon, checkTriangleVertices.Index1)].WorldSpace
-        //                     .ToVector3(),
-        //                 _vertices[GetVertexIndex(checkPolygon, checkTriangleVertices.Index2)].WorldSpace
-        //                     .ToVector3(),
-        //                 _vertices[GetVertexIndex(checkPolygon, checkTriangleVertices.Index3)].WorldSpace
-        //                     .ToVector3(),
-        //                 out var distance))
-        //         {
-        //             if (distance < (interpolatedVertex - _lightPosition).Length())
-        //             {
-        //                 lightColor = new Color(0, 0, 0);
-        //                 state.Break();
-        //             }
-        //         }
-        //     }
-        // });
+        Parallel.ForEach(_model.Polygons, (checkPolygon, state, _) =>
+        {
+            if (checkPolygon == polygon) return;
+        
+            foreach (var checkTriangleVertices in checkPolygon)
+            {
+                if (GetTriangleIntersection(
+                        _lightPosition,
+                        Vector3.Normalize(interpolatedVertex - _lightPosition),
+                        _vertices[GetVertexIndex(checkPolygon, checkTriangleVertices.Index1)].WorldSpace
+                            .ToVector3(),
+                        _vertices[GetVertexIndex(checkPolygon, checkTriangleVertices.Index2)].WorldSpace
+                            .ToVector3(),
+                        _vertices[GetVertexIndex(checkPolygon, checkTriangleVertices.Index3)].WorldSpace
+                            .ToVector3(),
+                        out var distance))
+                {
+                    if (distance < (interpolatedVertex - _lightPosition).Length())
+                    {
+                        lightColor = new Color(0, 0, 0);
+                        state.Break();
+                    }
+                }
+            }
+        });
 
         var color = GetVertexColor(
             // new Color(255, 255, 255),
@@ -332,10 +346,10 @@ public class PhongIlluminationRenderer : IRenderer
             interpolatedVertex,
             specularModifier);
                         
-        _bitmap.DrawPixel(x, y, color, (int)z);
+        _bitmap.DrawPixel(x, y, color, z);
     }
 
-    private bool IsTriangleIsOnScreen(Span<Vector3Int> screenCoords, out int minY, out int maxY)
+    private bool IsTriangleIsOnScreen(Span<Vector2Int> screenCoords, out int minY, out int maxY)
     {
         maxY = Math.Max(Math.Max(screenCoords[0].Y, screenCoords[1].Y), screenCoords[2].Y);
         minY = Math.Min(Math.Min(screenCoords[0].Y, screenCoords[1].Y), screenCoords[2].Y);
@@ -387,7 +401,7 @@ public class PhongIlluminationRenderer : IRenderer
     {
         if (_zBuffer is null || _zBuffer.GetLength(0) != bitmap.Width || _zBuffer.GetLength(1) != bitmap.Height)
         {
-            _zBuffer = new int[bitmap.Width, bitmap.Height];
+            _zBuffer = new float[bitmap.Width, bitmap.Height];
         }
 
         for (var x = 0; x < bitmap.Width; x++)
@@ -475,8 +489,8 @@ public class PhongIlluminationRenderer : IRenderer
         return (a1 * w1 + a2 * w2 + a3 * w3) / (w1 + w2 + w3);
     }
     
-    private static double InterpolateValue(
-        Span<(Vector2Int vertex, double anchorValue)> data,
+    private static float InterpolateValue(
+        Span<(Vector2Int vertex, float anchorValue)> data,
         Vector2Int vertex)
     {
         var (v1, v2, v3) = (data[0].vertex.ToVector2(), data[1].vertex.ToVector2(), data[2].vertex.ToVector2());

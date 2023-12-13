@@ -8,5 +8,5 @@ public interface IBitmap
     
     int Height { get; }
     
-    void DrawPixel(int x, int y, Color color, int z = 0);
+    void DrawPixel(int x, int y, Color color, float z = 0f);
 }
