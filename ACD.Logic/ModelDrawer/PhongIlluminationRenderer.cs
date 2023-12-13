@@ -71,8 +71,6 @@ public class PhongIlluminationRenderer : IRenderer
         
         Span<Vector3Int> verticesScreenCoords = stackalloc Vector3Int[_model.MaxPolygonVertices];
         
-        Span<Vector3> coords = stackalloc Vector3[2];
-        
         for (var i = 0; i < polygon.Vertices.Count; i++)
         {
             var vertexIndex = GetVertexIndex(polygon, i);
@@ -109,194 +107,224 @@ public class PhongIlluminationRenderer : IRenderer
 
             for (var y = maxY; y >= minY; y--)
             {
-                var c = 0;
-
-                for (var li = 0; li < 3 && c < 2; li++)
-                {
-                    var line = lines[li];
-
-                    if (line.From.Y >= y && line.To.Y < y)
-                    {
-                        var dy = y - line.From.Y;
-                        var dx = (line.To.X - line.From.X) * 1f * dy / (line.To.Y - line.From.Y);
-                        var dz = (line.To.Z - line.From.Z) * 1f * dy / (line.To.Y - line.From.Y);
-
-                        coords[c++] = new Vector3(line.From.X + dx, y, line.From.Z + dz);
-                    }
-                    else if (line.From.Y == line.To.Y && line.To.Y == y)
-                    {
-                        coords[0] = line.From.ToVector3();
-                        coords[1] = line.To.ToVector3();
-                        c = 2;
-                        break;
-                    }
-                }
-
-                if (c < 2) continue;
-
-                var cminx = (int)Math.Ceiling(Math.Min(coords[0].X, coords[1].X));
-                var cmaxx = (int)Math.Max(cminx, Math.Max(coords[0].X, coords[1].X));
-
-                if ((coords[0].X < 0 && coords[1].X < 0) ||
-                    (cmaxx >= _bitmap.Width && cminx >= _bitmap.Width))
+                if (GetHorizontalLineRasterisationRange(lines, y, out var from, out var to) == false)
                 {
                     continue;
                 }
 
-                var from = Math.Clamp(cminx, 0, _bitmap.Width - 1);
-                var to = Math.Clamp(cmaxx, 0, _bitmap.Width - 1);
-
-                if (from > to)
-                {
-                    (from, to) = (to, from);
-                }
-
-                var z = coords[0].Z * 1f;
-                var deltaZ = Math.Abs(from - to) < 0.001
+                var z = from.Z * 1f;
+                var deltaZ = Math.Abs(from.X - to.X) < 0.001
                     ? 0f
-                    : (coords[1].Z - coords[0].Z + 0f) / (to - from);
+                    : (from.Z - from.Z + 0f) / (to.X - from.X);
 
-                for (var x = from; x <= to; x++)
+                for (var x = (int)from.X; x <= to.X; x++)
                 {
-                    if (_zBuffer[x, y] > z)
-                    {
-                        _zBuffer[x, y] = (int)z;
-
-                        var polygonNormal =
-                            Vector3.Normalize(_vertexTransformer.ToWorldSpace(polygon.Normal.ToVector4()).ToVector3());
-
-                        for (var i = 0; i < 3; i++)
-                        {
-                            data[i].vertex = screenCoords[i].ToVector2Int();
-                            data[i].normal = _normals[vertexGlobalIndices[i]] ?? polygonNormal;
-                        }
-
-                        var normal = InterpolateNormal(data, new Vector2Int(x, y));
-
-                        for (var i = 0; i < 3; i++)
-                        {
-                            data[i].normal = _vertices[vertexGlobalIndices[i]].WorldSpace.ToVector3();
-                        }
-
-                        var interpolatedVertex = InterpolateVertex(data, new Vector2(x, y));
-
-                        var surfaceColor = new Color(255, 255, 255);
-                        var specularModifier = 0.4f;
-
-                        if (_textureCoords[vertexGlobalIndices[0]].HasValue &&
-                            _textureCoords[vertexGlobalIndices[1]].HasValue &&
-                            _textureCoords[vertexGlobalIndices[2]].HasValue &&
-                            polygon.Material != null)
-                        {
-                            var diffuseMap = polygon.Material.DiffuseMap;
-
-                            for (var i = 0; i < 3; i++)
-                            {
-                                dataValue[i].vertex = screenCoords[i].ToVector2Int();
-                                dataValue[i].value = 1 / _vertices[vertexGlobalIndices[i]].ClipSpace.W;
-                            }
-
-                            var interpolatedRevZ = InterpolateValue(dataValue, new Vector2Int(x, y));
-
-                            for (var i = 0; i < 3; i++)
-                            {
-                                data[i].normal = _textureCoords[vertexGlobalIndices[i]]!.Value / _vertices[vertexGlobalIndices[i]].ClipSpace.W;
-                            }
-
-                            var interpolatedTextureCoord = InterpolateVertex(data, new Vector2(x, y));
-
-                            interpolatedTextureCoord /= (float)interpolatedRevZ;
-
-                            surfaceColor = GetColorFromMap(diffuseMap);
-
-                            if (polygon.Material.NormalMap != null)
-                            {
-                                var normalColor = GetColorFromMap(polygon.Material.NormalMap);
-                                normal =
-                                    new Vector3(normalColor.R, normalColor.G, normalColor.B) / 255f * 2f -
-                                    Vector3.One;
-                            }
-
-                            if (polygon.Material.MirrorMap != null)
-                            {
-                                var mirrorColor = GetColorFromMap(polygon.Material.MirrorMap);
-                                specularModifier = mirrorColor.R / 255f;
-                            }
-
-                            Color GetColorFromMap(Color[,] map)
-                            {
-                                var width = map.GetLength(0);
-                                var height = map.GetLength(1);
-
-                                var tx = (int)(interpolatedTextureCoord.X * (width - 1));
-                                var ty = (int)((1 - interpolatedTextureCoord.Y) * (height - 1));
-
-                                if (tx < 0)
-                                {
-                                    tx = width - (-tx % width);
-                                }
-
-                                if (ty < 0)
-                                {
-                                    ty = height - (-ty % height);
-                                }
-
-                                tx %= width;
-                                ty %= height;
-
-                                return map[
-                                    tx % width,
-                                    ty % height
-                                ];
-                            }
-                        }
-
-                        // Calculate shadow
-                        var lightColor = new Color(255, 255, 255);
-
-                        Parallel.ForEach(_model.Polygons, (checkPolygon, state, _) =>
-                        {
-                            if (checkPolygon == polygon) return;
-
-                            foreach (var checkTriangleVertices in checkPolygon)
-                            {
-                                if (GetTriangleIntersection(
-                                        _lightPosition,
-                                        Vector3.Normalize(interpolatedVertex - _lightPosition),
-                                        _vertices[GetVertexIndex(checkPolygon, checkTriangleVertices.Index1)].WorldSpace
-                                            .ToVector3(),
-                                        _vertices[GetVertexIndex(checkPolygon, checkTriangleVertices.Index2)].WorldSpace
-                                            .ToVector3(),
-                                        _vertices[GetVertexIndex(checkPolygon, checkTriangleVertices.Index3)].WorldSpace
-                                            .ToVector3(),
-                                        out var distance))
-                                {
-                                    if (distance < (interpolatedVertex - _lightPosition).Length())
-                                    {
-                                        lightColor = new Color(0, 0, 0);
-                                        state.Break();
-                                    }
-                                }
-                            }
-                        });
-
-                        var color = GetVertexColor(
-                            // new Color(255, 255, 255),
-                            lightColor,
-                            surfaceColor,
-                            _lightPosition,
-                            _cameraPosition,
-                            normal,
-                            interpolatedVertex,
-                            specularModifier);
-                        
-                        _bitmap.DrawPixel(x, y, color, (int)z);
-                    }
+                    DrawPixel(polygon, x, y, z, data, screenCoords, vertexGlobalIndices, dataValue);
 
                     z += deltaZ;
                 }
             }
         }
+    }
+
+    private bool GetHorizontalLineRasterisationRange(Span<Line> lines, int y, out Vector3 from, out Vector3 to)
+    {
+        Span<Vector3> coords = stackalloc Vector3[2];
+
+        from = to = Vector3.Zero;
+        
+        var c = 0;
+
+        for (var li = 0; li < 3 && c < 2; li++)
+        {
+            var line = lines[li];
+
+            if (line.From.Y >= y && line.To.Y < y)
+            {
+                var dy = y - line.From.Y;
+                var dx = (line.To.X - line.From.X) * 1f * dy / (line.To.Y - line.From.Y);
+                var dz = (line.To.Z - line.From.Z) * 1f * dy / (line.To.Y - line.From.Y);
+
+                coords[c++] = new Vector3(line.From.X + dx, y, line.From.Z + dz);
+            }
+            else if (line.From.Y == line.To.Y && line.To.Y == y)
+            {
+                coords[0] = line.From.ToVector3();
+                coords[1] = line.To.ToVector3();
+                c = 2;
+                break;
+            }
+        }
+
+        if (c < 2) return false;
+
+        from = coords[0];
+        to = coords[1];
+
+        var minX = (int)Math.Ceiling(Math.Min(from.X, to.X));
+        var maxX = (int)Math.Max(minX, Math.Max(from.X, to.X));
+
+        if ((coords[0].X < 0 && coords[1].X < 0) ||
+            (maxX >= _bitmap.Width && minX >= _bitmap.Width))
+        {
+            return false;
+        }
+
+        from.X = Math.Clamp(minX, 0, _bitmap.Width - 1);
+        to.X = Math.Clamp(maxX, 0, _bitmap.Width - 1);
+
+        if (from.X > to.X)
+        {
+            (from, to) = (to, from);
+        }
+
+        return true;
+    }
+
+    private void DrawPixel(
+        Polygon polygon, 
+        int x, int y, float z, 
+        Span<(Vector2Int vertex, Vector3 normal)> data, 
+        Span<Vector3Int> screenCoords, 
+        Span<int> vertexGlobalIndices,
+        Span<(Vector2Int vertex, double value)> dataValue)
+    {
+        if (_zBuffer![x, y] < z)
+        {
+            return;
+        }
+
+        _zBuffer[x, y] = (int)z;
+
+        var polygonNormal =
+            Vector3.Normalize(_vertexTransformer.ToWorldSpace(polygon.Normal.ToVector4()).ToVector3());
+
+        for (var i = 0; i < 3; i++)
+        {
+            data[i].vertex = screenCoords[i].ToVector2Int();
+            data[i].normal = _normals[vertexGlobalIndices[i]] ?? polygonNormal;
+        }
+
+        var normal = InterpolateNormal(data, new Vector2Int(x, y));
+
+        for (var i = 0; i < 3; i++)
+        {
+            data[i].normal = _vertices[vertexGlobalIndices[i]].WorldSpace.ToVector3();
+        }
+
+        var interpolatedVertex = InterpolateVertex(data, new Vector2(x, y));
+
+        var surfaceColor = new Color(255, 255, 255);
+        var specularModifier = 0.4f;
+
+        if (_textureCoords[vertexGlobalIndices[0]].HasValue &&
+            _textureCoords[vertexGlobalIndices[1]].HasValue &&
+            _textureCoords[vertexGlobalIndices[2]].HasValue &&
+            polygon.Material != null)
+        {
+            var diffuseMap = polygon.Material.DiffuseMap;
+
+            for (var i = 0; i < 3; i++)
+            {
+                dataValue[i].vertex = screenCoords[i].ToVector2Int();
+                dataValue[i].value = 1 / _vertices[vertexGlobalIndices[i]].ClipSpace.W;
+            }
+
+            var interpolatedRevZ = InterpolateValue(dataValue, new Vector2Int(x, y));
+
+            for (var i = 0; i < 3; i++)
+            {
+                data[i].normal = _textureCoords[vertexGlobalIndices[i]]!.Value / _vertices[vertexGlobalIndices[i]].ClipSpace.W;
+            }
+
+            var interpolatedTextureCoord = InterpolateVertex(data, new Vector2(x, y));
+
+            interpolatedTextureCoord /= (float)interpolatedRevZ;
+
+            surfaceColor = GetColorFromMap(diffuseMap);
+
+            if (polygon.Material.NormalMap != null)
+            {
+                var normalColor = GetColorFromMap(polygon.Material.NormalMap);
+                normal =
+                    new Vector3(normalColor.R, normalColor.G, normalColor.B) / 255f * 2f -
+                    Vector3.One;
+            }
+
+            if (polygon.Material.MirrorMap != null)
+            {
+                var mirrorColor = GetColorFromMap(polygon.Material.MirrorMap);
+                specularModifier = mirrorColor.R / 255f;
+            }
+
+            Color GetColorFromMap(Color[,] map)
+            {
+                var width = map.GetLength(0);
+                var height = map.GetLength(1);
+
+                var tx = (int)(interpolatedTextureCoord.X * (width - 1));
+                var ty = (int)((1 - interpolatedTextureCoord.Y) * (height - 1));
+
+                if (tx < 0)
+                {
+                    tx = width - (-tx % width);
+                }
+
+                if (ty < 0)
+                {
+                    ty = height - (-ty % height);
+                }
+
+                tx %= width;
+                ty %= height;
+
+                return map[
+                    tx % width,
+                    ty % height
+                ];
+            }
+        }
+
+        // Calculate shadow
+        var lightColor = new Color(255, 255, 255);
+
+        // Parallel.ForEach(_model.Polygons, (checkPolygon, state, _) =>
+        // {
+        //     if (checkPolygon == polygon) return;
+        //
+        //     foreach (var checkTriangleVertices in checkPolygon)
+        //     {
+        //         if (GetTriangleIntersection(
+        //                 _lightPosition,
+        //                 Vector3.Normalize(interpolatedVertex - _lightPosition),
+        //                 _vertices[GetVertexIndex(checkPolygon, checkTriangleVertices.Index1)].WorldSpace
+        //                     .ToVector3(),
+        //                 _vertices[GetVertexIndex(checkPolygon, checkTriangleVertices.Index2)].WorldSpace
+        //                     .ToVector3(),
+        //                 _vertices[GetVertexIndex(checkPolygon, checkTriangleVertices.Index3)].WorldSpace
+        //                     .ToVector3(),
+        //                 out var distance))
+        //         {
+        //             if (distance < (interpolatedVertex - _lightPosition).Length())
+        //             {
+        //                 lightColor = new Color(0, 0, 0);
+        //                 state.Break();
+        //             }
+        //         }
+        //     }
+        // });
+
+        var color = GetVertexColor(
+            // new Color(255, 255, 255),
+            lightColor,
+            surfaceColor,
+            _lightPosition,
+            _cameraPosition,
+            normal,
+            interpolatedVertex,
+            specularModifier);
+                        
+        _bitmap.DrawPixel(x, y, color, (int)z);
     }
 
     private bool IsTriangleIsOnScreen(Span<Vector3Int> screenCoords, out int minY, out int maxY)
