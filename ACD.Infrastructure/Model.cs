@@ -6,7 +6,7 @@ public class Model
 
     public int MaxPolygonVertices { get; }
     
-    public IReadOnlyList<Polygon> Polygons => _polygons;
+    public List<Polygon> Polygons => _polygons;
 
     public float MinX { get; }
     public float MinY { get; }

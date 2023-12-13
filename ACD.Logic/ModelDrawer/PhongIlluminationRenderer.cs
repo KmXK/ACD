@@ -115,6 +115,9 @@ public class PhongIlluminationRenderer : IRenderer
             var minX = Math.Min(screenCoords[0].X, Math.Min(screenCoords[1].X, screenCoords[2].X));
             var maxX = Math.Max(screenCoords[0].X, Math.Max(screenCoords[1].X, screenCoords[2].X));
 
+            minX = Math.Clamp(minX, 0, _bitmap.Width - 1);
+            maxX = Math.Clamp(maxX, 0, _bitmap.Width - 1);
+
             for (var y = maxY; y >= minY; y--)
             {
                 if (GetHorizontalLineRasterisationRange(
@@ -261,7 +264,7 @@ public class PhongIlluminationRenderer : IRenderer
 
             var interpolatedTextureCoord = InterpolateVertex(data, new Vector2(x, y));
 
-            interpolatedTextureCoord /= (float)interpolatedRevZ;
+            interpolatedTextureCoord /= interpolatedRevZ;
 
             surfaceColor = GetColorFromMap(diffuseMap);
 
@@ -310,10 +313,10 @@ public class PhongIlluminationRenderer : IRenderer
         // Calculate shadow
         var lightColor = new Color(255, 255, 255);
 
-        Parallel.ForEach(_model.Polygons, (checkPolygon, state, _) =>
+        foreach (var checkPolygon in _model.Polygons)
         {
-            if (checkPolygon == polygon) return;
-        
+            if (checkPolygon == polygon) continue;
+
             foreach (var checkTriangleVertices in checkPolygon)
             {
                 if (GetTriangleIntersection(
@@ -327,14 +330,14 @@ public class PhongIlluminationRenderer : IRenderer
                             .ToVector3(),
                         out var distance))
                 {
-                    if (distance < (interpolatedVertex - _lightPosition).Length())
+                    if (distance < (interpolatedVertex - _lightPosition).Length() - 1e-3)
                     {
                         lightColor = new Color(0, 0, 0);
-                        state.Break();
+                        break;
                     }
                 }
             }
-        });
+        }
 
         var color = GetVertexColor(
             // new Color(255, 255, 255),
