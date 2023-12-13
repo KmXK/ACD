@@ -185,49 +185,53 @@ public partial class MainWindow
             return;
         }
         
-        FillBitmap(Color.FromArgb(0, 0, 0, 0));
+        // FillBitmap(Color.FromArgb(0, 0, 0, 0));
 
         var vertexTransformer = new VertexScreenTransformer(_camera, _transform);
+        
+        _bitmap.Lock();
+        
         var bitmapAdapter = new WritableBitmapAdapter(_bitmap);
 
-        _bitmap.Lock();
         _modelDrawer.DrawModel(bitmapAdapter, vertexTransformer, _lightPosition, _camera.SphericalPosition.ToCartesian());
 
+        bitmapAdapter.DrawBitmap();
+        
         // DrawAxes(vertexTransformer, bitmapAdapter);
         
         _bitmap.Unlock();
     }
 
-    private void FillBitmap(Color fillColor)
-    {
-        if (_bitmap == null)
-        {
-            return;
-        }
-
-        var width = _bitmap.PixelWidth;
-        var height = _bitmap.PixelHeight;
-        var bytesPerPixel = (_bitmap.Format.BitsPerPixel + 7) / 8;
-        var stride = width * bytesPerPixel;
-
-        if (_pixelData[2] != fillColor.R || _pixelData[1] != fillColor.G ||
-            _pixelData[0] != fillColor.B || _pixelData[3] != fillColor.A)
-        {
-            for (var i = 0; i < _pixelData.Length; i += bytesPerPixel)
-            {
-                _pixelData[i + 2] = fillColor.R;
-                _pixelData[i + 1] = fillColor.G;
-                _pixelData[i + 0] = fillColor.B;
-                _pixelData[i + 3] = fillColor.A;
-            }
-        }
-        
-        _bitmap.WritePixels(
-            new Int32Rect(0, 0, width, height),
-            _pixelData,
-            stride,
-            0);
-    }
+    // private void FillBitmap(Color fillColor)
+    // {
+    //     if (_bitmap == null)
+    //     {
+    //         return;
+    //     }
+    //
+    //     var width = _bitmap.PixelWidth;
+    //     var height = _bitmap.PixelHeight;
+    //     var bytesPerPixel = (_bitmap.Format.BitsPerPixel + 7) / 8;
+    //     var stride = width * bytesPerPixel;
+    //
+    //     if (_pixelData[2] != fillColor.R || _pixelData[1] != fillColor.G ||
+    //         _pixelData[0] != fillColor.B || _pixelData[3] != fillColor.A)
+    //     {
+    //         for (var i = 0; i < _pixelData.Length; i += bytesPerPixel)
+    //         {
+    //             _pixelData[i + 2] = fillColor.R;
+    //             _pixelData[i + 1] = fillColor.G;
+    //             _pixelData[i + 0] = fillColor.B;
+    //             _pixelData[i + 3] = fillColor.A;
+    //         }
+    //     }
+    //     
+    //     _bitmap.WritePixels(
+    //         new Int32Rect(0, 0, width, height),
+    //         _pixelData,
+    //         stride,
+    //         0);
+    // }
 
     private void MainWindow_OnMouseWheel(object sender, MouseWheelEventArgs e)
     {

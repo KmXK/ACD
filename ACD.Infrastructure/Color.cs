@@ -1,6 +1,6 @@
 ﻿namespace ACD.Infrastructure;
 
-public readonly record struct Color(byte R, byte G, byte B)
+public readonly record struct Color(byte R, byte G, byte B, byte A = 255)
 {
     public static Color operator *(Color color, double value)
     {
