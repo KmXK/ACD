@@ -1,4 +1,5 @@
-﻿using System.Numerics;
+﻿using System.Diagnostics;
+using System.Numerics;
 using ACD.Infrastructure;
 using ACD.Infrastructure.Vectors;
 using ACD.Logic.Bitmap;
@@ -50,7 +51,12 @@ public class PhongIlluminationRenderer : IRenderer
         
         //foreach (var polygon in _model.Polygons)
         
-        Parallel.ForEach(_model.Polygons, (polygon, _, _) =>
+        var options = new ParallelOptions
+        {
+            MaxDegreeOfParallelism = Debugger.IsAttached ? 1 : Environment.ProcessorCount
+        };
+        
+        Parallel.ForEach(_model.Polygons, options, (polygon, _, _) =>
         {
             if (!IsPolygonVisible(polygon, cameraPosition)) return;
 
@@ -64,10 +70,7 @@ public class PhongIlluminationRenderer : IRenderer
         Span<int> vertexLocalIndices = stackalloc int[3];
         Span<int> vertexGlobalIndices = stackalloc int[3];
 
-        Span<Line> lines = stackalloc Line[3];
-        
-        Span<(Vector2Int vertex, Vector3 normal)> data = stackalloc (Vector2Int vertex, Vector3 normal)[3];
-        Span<(Vector2Int vertex, double value)> dataValue = stackalloc (Vector2Int vertex, double value)[3];
+        Span<Vector2> lines = stackalloc Vector2[3];
         
         Span<Vector3Int> verticesScreenCoords = stackalloc Vector3Int[_model.MaxPolygonVertices];
         
@@ -101,13 +104,16 @@ public class PhongIlluminationRenderer : IRenderer
             maxY = Math.Clamp(maxY, 0, _bitmap.Height - 1);
             minY = Math.Clamp(minY, 0, _bitmap.Height - 1);
 
-            lines[0] = new Line(screenCoords[0], screenCoords[1]);
-            lines[1] = new Line(screenCoords[1], screenCoords[2]);
-            lines[2] = new Line(screenCoords[2], screenCoords[0]);
+            lines[0] = screenCoords[1].ToVector2Int().ToVector2() - screenCoords[0].ToVector2Int().ToVector2();
+            lines[1] = screenCoords[2].ToVector2Int().ToVector2() - screenCoords[1].ToVector2Int().ToVector2();
+            lines[2] = screenCoords[0].ToVector2Int().ToVector2() - screenCoords[2].ToVector2Int().ToVector2();
+
+            var minX = Math.Min(screenCoords[0].X, Math.Min(screenCoords[1].X, screenCoords[2].X));
+            var maxX = Math.Max(screenCoords[0].X, Math.Max(screenCoords[1].X, screenCoords[2].X));
 
             for (var y = maxY; y >= minY; y--)
             {
-                if (GetHorizontalLineRasterisationRange(lines, y, out var from, out var to) == false)
+                if (GetHorizontalLineRasterisationRange(lines, screenCoords, minX, maxX, y, out var from, out var to) == false)
                 {
                     continue;
                 }
@@ -115,11 +121,11 @@ public class PhongIlluminationRenderer : IRenderer
                 var z = from.Z * 1f;
                 var deltaZ = Math.Abs(from.X - to.X) < 0.001
                     ? 0f
-                    : (from.Z - from.Z + 0f) / (to.X - from.X);
+                    : (to.Z - from.Z + 0f) / (to.X - from.X);
 
                 for (var x = (int)from.X; x <= to.X; x++)
                 {
-                    DrawPixel(polygon, x, y, z, data, screenCoords, vertexGlobalIndices, dataValue);
+                    DrawPixel(polygon, x, y, z, screenCoords, vertexGlobalIndices);
 
                     z += deltaZ;
                 }
@@ -127,56 +133,59 @@ public class PhongIlluminationRenderer : IRenderer
         }
     }
 
-    private bool GetHorizontalLineRasterisationRange(Span<Line> lines, int y, out Vector3 from, out Vector3 to)
+    private bool GetHorizontalLineRasterisationRange(
+        Span<Vector2> lines,
+        Span<Vector3Int> screenCoords,
+        int minX,
+        int maxX, 
+        int y, 
+        out Vector3 from, out Vector3 to)
     {
-        Span<Vector3> coords = stackalloc Vector3[2];
-
         from = to = Vector3.Zero;
+
+        var findingMin = true;
         
-        var c = 0;
-
-        for (var li = 0; li < 3 && c < 2; li++)
+        for (var x = minX; x <= maxX; x++)
         {
-            var line = lines[li];
-
-            if (line.From.Y >= y && line.To.Y < y)
+            var result = true;
+            
+            for (var i = 0; i < 3; i++)
             {
-                var dy = y - line.From.Y;
-                var dx = (line.To.X - line.From.X) * 1f * dy / (line.To.Y - line.From.Y);
-                var dz = (line.To.Z - line.From.Z) * 1f * dy / (line.To.Y - line.From.Y);
+                var z = lines[i].X * (-y + screenCoords[i].Y) + lines[i].Y * (x - screenCoords[i].X);
 
-                coords[c++] = new Vector3(line.From.X + dx, y, line.From.Z + dz);
+                if (z < 0) result = false;
             }
-            else if (line.From.Y == line.To.Y && line.To.Y == y)
+            
+            if (result)
             {
-                coords[0] = line.From.ToVector3();
-                coords[1] = line.To.ToVector3();
-                c = 2;
+                if (findingMin)
+                {
+                    from = new Vector3(x, y, 0);
+                    findingMin = false;
+                }
+            }
+            else if (findingMin == false)
+            {
+                to = new Vector3(x - 1, y, 0);
                 break;
             }
         }
-
-        if (c < 2) return false;
-
-        from = coords[0];
-        to = coords[1];
-
-        var minX = (int)Math.Ceiling(Math.Min(from.X, to.X));
-        var maxX = (int)Math.Max(minX, Math.Max(from.X, to.X));
-
-        if ((coords[0].X < 0 && coords[1].X < 0) ||
-            (maxX >= _bitmap.Width && minX >= _bitmap.Width))
-        {
+        
+        if (from.X >= to.X)
             return false;
-        }
-
-        from.X = Math.Clamp(minX, 0, _bitmap.Width - 1);
-        to.X = Math.Clamp(maxX, 0, _bitmap.Width - 1);
-
-        if (from.X > to.X)
+        
+        Span<(Vector2Int vertex, double value)> dataValue = stackalloc (Vector2Int vertex, double value)[3];
+        
+        for (var i = 0; i < 3; i++)
         {
-            (from, to) = (to, from);
+            dataValue[i].vertex = screenCoords[i].ToVector2Int();
+            dataValue[i].value = screenCoords[i].Z;
         }
+
+       
+        
+        from.Z = (float)InterpolateValue(dataValue, from.ToVector2Int());
+        to.Z = (float)InterpolateValue(dataValue, to.ToVector2Int());
 
         return true;
     }
@@ -184,15 +193,16 @@ public class PhongIlluminationRenderer : IRenderer
     private void DrawPixel(
         Polygon polygon, 
         int x, int y, float z, 
-        Span<(Vector2Int vertex, Vector3 normal)> data, 
         Span<Vector3Int> screenCoords, 
-        Span<int> vertexGlobalIndices,
-        Span<(Vector2Int vertex, double value)> dataValue)
+        Span<int> vertexGlobalIndices)
     {
         if (_zBuffer![x, y] < z)
         {
             return;
         }
+        
+        Span<(Vector2Int vertex, Vector3 normal)> data = stackalloc (Vector2Int vertex, Vector3 normal)[3];
+        Span<(Vector2Int vertex, double value)> dataValue = stackalloc (Vector2Int vertex, double value)[3];
 
         _zBuffer[x, y] = (int)z;
 
